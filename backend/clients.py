@@ -52,7 +52,7 @@ async def call_chatgpt(
         try:
             response = await client.chat.completions.create(
                 model=model,
-                max_tokens=max_tokens,
+                max_completion_tokens=max_tokens,
                 messages=[{"role": "user", "content": prompt}],
             )
             return response.choices[0].message.content
