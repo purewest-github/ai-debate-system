@@ -9,8 +9,8 @@ from google.genai import types as genai_types
 logger = logging.getLogger(__name__)
 
 # デフォルトモデル
-DEFAULT_CLAUDE = "claude-opus-4-5"
-DEFAULT_CHATGPT = "gpt-4o"
+DEFAULT_CLAUDE = "claude-haiku-4-5"
+DEFAULT_CHATGPT = "gpt-4o-mini"
 DEFAULT_GEMINI = "gemini-2.0-flash"
 DEFAULT_GROK = "grok-2-1212"
 
