@@ -219,7 +219,7 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 // -------- LocalStorage --------
 const LS_KEY = "ai_debate_config";
 const defaultConfig = () => ({
-  openai_api_key: "", gemini_api_key: "", grok_api_key: "",
+  anthropic_api_key: "", openai_api_key: "", gemini_api_key: "", grok_api_key: "",
   enabled_ais: [...ALL_AIS], rounds: 2, enable_revision: true, language: "ja",
   max_tokens_initial: 2000, max_tokens_eval: 1500, max_tokens_revision: 2000, max_tokens_score: 2000,
   model_eval: "", model_revision: "", model_scoring: "",
@@ -622,6 +622,11 @@ function ConfigPanel({ config, onChange }) {
           {/* API keys */}
           <div className="config-row">
             <div className="config-group" style={{ flex: 1 }}>
+              <label>Anthropic API Key</label>
+              <input type="password" placeholder="sk-ant-..." value={config.anthropic_api_key}
+                onChange={e => onChange({ ...config, anthropic_api_key: e.target.value })} />
+            </div>
+            <div className="config-group" style={{ flex: 1 }}>
               <label>OpenAI API Key</label>
               <input type="password" placeholder="sk-..." value={config.openai_api_key}
                 onChange={e => onChange({ ...config, openai_api_key: e.target.value })} />
@@ -756,6 +761,7 @@ function App() {
     const body = JSON.stringify({
       question,
       rounds: config.rounds,
+      anthropic_api_key: config.anthropic_api_key,
       openai_api_key: config.openai_api_key,
       gemini_api_key: config.gemini_api_key,
       grok_api_key: config.grok_api_key,

@@ -15,11 +15,12 @@ DEFAULT_GEMINI = "gemini-2.0-flash"
 DEFAULT_GROK = "grok-2-1212"
 
 
-async def call_claude(prompt: str, max_tokens: int, language: str, model: str) -> str:
-    """Claude API を呼び出す。ANTHROPIC_API_KEY は環境変数から取得。"""
+async def call_claude(prompt: str, max_tokens: int, language: str, model: str, api_key: str = "") -> str:
+    """Claude API を呼び出す。api_key が空なら環境変数 ANTHROPIC_API_KEY にフォールバック。"""
     if not model:
         model = DEFAULT_CLAUDE
-    client = AsyncAnthropic()
+    key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+    client = AsyncAnthropic(api_key=key)
 
     for attempt in range(3):
         try:

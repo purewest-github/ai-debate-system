@@ -24,7 +24,7 @@ async def _call_ai(
     """各 AI クライアントへのディスパッチ。semaphore で同時実行数を制限。"""
     async with semaphore:
         if ai == AIName.CLAUDE:
-            return await call_claude(prompt, max_tokens, config.language, model_override)
+            return await call_claude(prompt, max_tokens, config.language, model_override, config.anthropic_api_key)
         elif ai == AIName.CHATGPT:
             return await call_chatgpt(
                 prompt, max_tokens, config.language, model_override, config.openai_api_key

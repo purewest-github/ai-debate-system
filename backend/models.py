@@ -49,6 +49,7 @@ class ScoreDetail(BaseModel):
 class DebateConfig(BaseModel):
     question: str
     rounds: int = Field(default=2, ge=1, le=5)
+    anthropic_api_key: str = ""
     openai_api_key: str = ""
     gemini_api_key: str = ""
     grok_api_key: str = ""

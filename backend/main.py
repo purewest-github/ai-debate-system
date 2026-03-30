@@ -5,12 +5,14 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from dotenv import load_dotenv
 
-from models import DebateConfig, DebateResponse
+from models import AIName, DebateConfig, DebateResponse
 from debate import run_debate
 import db
 
@@ -63,6 +65,22 @@ async def health():
 @app.post("/api/debate/stream")
 async def debate_stream(config: DebateConfig, request: Request):
     """SSE エンドポイント。討論の進行をリアルタイムにストリーミング。"""
+    # APIキーバリデーション（UI入力もenv変数も空なら400）
+    missing = []
+    if AIName.CLAUDE in config.enabled_ais and not config.anthropic_api_key and not os.environ.get("ANTHROPIC_API_KEY"):
+        missing.append("Anthropic")
+    if AIName.CHATGPT in config.enabled_ais and not config.openai_api_key and not os.environ.get("OPENAI_API_KEY"):
+        missing.append("OpenAI")
+    if AIName.GEMINI in config.enabled_ais and not config.gemini_api_key and not os.environ.get("GEMINI_API_KEY"):
+        missing.append("Gemini")
+    if AIName.GROK in config.enabled_ais and not config.grok_api_key and not os.environ.get("GROK_API_KEY"):
+        missing.append("Grok")
+    if missing:
+        return JSONResponse(
+            status_code=400,
+            content={"detail": f"APIキーを入力してください: {', '.join(missing)}"},
+        )
+
     queue: asyncio.Queue = asyncio.Queue()
     job_id = str(uuid.uuid4())
     pool = app.state.pool
