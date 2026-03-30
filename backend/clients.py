@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_CLAUDE = "claude-haiku-4-5"
 DEFAULT_CHATGPT = "gpt-4o-mini"
 DEFAULT_GEMINI = "gemini-2.0-flash"
-DEFAULT_GROK = "grok-2-latest"
+DEFAULT_GROK = "grok-2"
 
 
 async def call_claude(prompt: str, max_tokens: int, language: str, model: str, api_key: str = "") -> str:
