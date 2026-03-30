@@ -1,1017 +1,725 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Debate System</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Scene Router</title>
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     :root {
-      --bg: #0f1117;
-      --bg2: #1a1d27;
-      --bg3: #232638;
-      --border: #2e3250;
-      --text: #e2e4ef;
-      --text2: #8b90ad;
-      --text3: #5a6080;
-      --accent: #6366f1;
-      --success: #22c55e;
-      --error: #ef4444;
+      --bg:#0f1117; --bg2:#1a1d27; --bg3:#232638;
+      --border:#2e3250; --text:#e2e4ef; --text2:#8b90ad; --text3:#5a6080;
+      --accent:#6366f1; --success:#22c55e; --error:#ef4444; --warning:#f59e0b;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+    h1,h2,h3 { color: var(--text); }
     a { color: var(--accent); }
-    button { cursor: pointer; border: none; outline: none; }
-    input, select { outline: none; }
-
-    .app { max-width: 1400px; margin: 0 auto; padding: 16px; }
-    .header { display: flex; align-items: center; justify-content: space-between; padding: 12px 0 16px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
-    .header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135deg, #c084fc, #6366f1, #22d3a0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .header-actions { display: flex; gap: 8px; align-items: center; }
-
-    .btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; transition: all 0.15s; }
-    .btn-primary { background: var(--accent); color: #fff; }
-    .btn-primary:hover { background: #4f51d9; }
-    .btn-primary:disabled { background: var(--bg3); color: var(--text3); cursor: not-allowed; }
-    .btn-secondary { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
-    .btn-secondary:hover { background: var(--border); color: var(--text); }
-    .btn-danger { background: transparent; color: var(--error); border: 1px solid var(--error); }
-    .btn-danger:hover { background: var(--error); color: #fff; }
-    .btn-sm { padding: 4px 10px; font-size: 12px; }
-
-    /* Config Panel */
-    .config-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
-    .config-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none; }
-    .config-header:hover { background: var(--bg3); }
-    .config-header h2 { font-size: 14px; font-weight: 600; color: var(--text2); }
-    .config-body { padding: 16px; border-top: 1px solid var(--border); display: grid; gap: 14px; }
-    .config-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
-    .config-group { display: flex; flex-direction: column; gap: 6px; min-width: 160px; }
-    .config-group label { font-size: 12px; color: var(--text2); font-weight: 500; }
-    .config-group input[type="password"], .config-group input[type="text"] {
-      background: var(--bg3); border: 1px solid var(--border); color: var(--text);
-      border-radius: 6px; padding: 6px 10px; font-size: 13px; width: 100%;
-    }
-    .config-group input:focus { border-color: var(--accent); }
-    .ai-toggles { display: flex; gap: 6px; flex-wrap: wrap; }
-    .ai-toggle { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
-      border: 2px solid transparent; cursor: pointer; transition: all 0.15s; }
-    .round-btns { display: flex; gap: 4px; }
-    .round-btn { width: 32px; height: 32px; border-radius: 6px; font-size: 13px; font-weight: 600;
-      background: var(--bg3); color: var(--text2); border: 1px solid var(--border); transition: all 0.15s; }
-    .round-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-    .toggle-switch { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-    .toggle-track { width: 36px; height: 20px; border-radius: 10px; background: var(--bg3); border: 1px solid var(--border);
-      position: relative; transition: background 0.2s; }
-    .toggle-track.on { background: var(--accent); border-color: var(--accent); }
-    .toggle-thumb { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px;
-      border-radius: 50%; background: #fff; transition: left 0.2s; }
-    .toggle-track.on .toggle-thumb { left: 18px; }
-    .lang-btns { display: flex; gap: 4px; }
-    .lang-btn { padding: 4px 12px; border-radius: 6px; font-size: 12px; background: var(--bg3);
-      color: var(--text2); border: 1px solid var(--border); transition: all 0.15s; }
-    .lang-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-    .api-count { font-size: 12px; color: var(--text2); background: var(--bg3);
-      padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); }
-    .api-count span { color: var(--accent); font-weight: 700; }
-
-    /* Progress */
-    .progress-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
-      padding: 12px 16px; margin-bottom: 16px; }
-    .progress-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .progress-phase { font-size: 13px; font-weight: 600; color: var(--text); }
-    .progress-count { font-size: 12px; color: var(--text2); }
-    .progress-bar-bg { height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
-    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #22d3a0);
-      border-radius: 3px; transition: width 0.4s ease; }
-
-    /* Question input */
-    .question-wrap { display: flex; gap: 8px; margin-bottom: 16px; }
-    .question-input { flex: 1; background: var(--bg2); border: 1px solid var(--border); color: var(--text);
-      border-radius: 8px; padding: 10px 14px; font-size: 14px; resize: vertical; min-height: 60px; font-family: inherit; }
-    .question-input:focus { border-color: var(--accent); }
-    .question-actions { display: flex; flex-direction: column; gap: 6px; }
-
-    /* Tabs */
-    .tabs { display: flex; gap: 2px; background: var(--bg2); border: 1px solid var(--border);
-      border-radius: 10px 10px 0 0; padding: 6px 8px 0; overflow-x: auto; }
-    .tab { padding: 7px 14px; border-radius: 6px 6px 0 0; font-size: 13px; font-weight: 500;
-      color: var(--text2); background: transparent; border: none; cursor: pointer; position: relative;
-      transition: all 0.15s; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
-    .tab:hover { background: var(--bg3); color: var(--text); }
-    .tab.active { background: var(--bg3); color: var(--text); border-bottom: 2px solid var(--accent); }
-    .tab-badge { font-size: 10px; background: var(--error); color: #fff; border-radius: 10px;
-      padding: 1px 5px; min-width: 16px; text-align: center; }
-    .tab-content { background: var(--bg2); border: 1px solid var(--border); border-top: none;
-      border-radius: 0 0 10px 10px; padding: 16px; min-height: 300px; }
-
-    /* Response Card */
-    .response-card { border-radius: 8px; border: 1px solid var(--border); margin-bottom: 10px;
-      overflow: hidden; transition: opacity 0.3s; }
-    .response-card.new-entry { animation: fadeIn 0.4s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-    .card-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px;
-      cursor: pointer; user-select: none; background: var(--bg3); }
-    .card-header:hover { background: var(--border); }
-    .card-ai-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .card-title { font-size: 13px; font-weight: 600; flex: 1; }
-    .card-meta { font-size: 11px; color: var(--text3); }
-    .card-phase-tag { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
-    .card-expand-icon { color: var(--text3); font-size: 10px; }
-    .card-body { padding: 14px; border-top: 1px solid var(--border); }
-    .card-body.error { color: var(--error); }
-    .card-body .md-content h1, .card-body .md-content h2, .card-body .md-content h3 {
-      color: var(--text); margin: 12px 0 6px; font-size: 14px; }
-    .card-body .md-content p { margin-bottom: 8px; color: var(--text2); }
-    .card-body .md-content ul, .card-body .md-content ol { margin: 6px 0 8px 18px; color: var(--text2); }
-    .card-body .md-content li { margin-bottom: 3px; }
-    .card-body .md-content code { background: var(--bg3); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
-    .card-body .md-content pre { background: var(--bg3); padding: 10px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
-    .card-body .md-content blockquote { border-left: 3px solid var(--border); padding-left: 10px; color: var(--text3); }
-    .card-body .md-content strong { color: var(--text); }
-
-    /* Round section */
-    .round-section { margin-bottom: 16px; }
-    .round-label { font-size: 12px; font-weight: 700; color: var(--text3); text-transform: uppercase;
-      letter-spacing: 0.08em; padding: 6px 0; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
-
-    /* Score board */
-    .score-board { display: flex; flex-direction: column; gap: 20px; }
-    .score-section-title { font-size: 14px; font-weight: 600; color: var(--text2); margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
-    .radar-wrap { display: flex; justify-content: center; }
-    .radar-legend { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 8px; }
-    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text2); }
-    .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
-    .ranking-list { display: flex; flex-direction: column; gap: 6px; }
-    .ranking-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px;
-      background: var(--bg3); border-radius: 8px; border: 1px solid var(--border); }
-    .ranking-medal { font-size: 18px; width: 28px; text-align: center; }
-    .ranking-ai { font-weight: 600; flex: 1; }
-    .ranking-score { font-size: 13px; color: var(--text2); }
-    .score-bar-wrap { margin-bottom: 6px; }
-    .score-bar-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); margin-bottom: 3px; }
-    .score-bar-bg { height: 8px; background: var(--bg3); border-radius: 4px; overflow: hidden; }
-    .score-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
-    .scorer-tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
-    .scorer-tab { padding: 4px 10px; border-radius: 6px; font-size: 12px; background: var(--bg3);
-      color: var(--text2); border: 1px solid var(--border); cursor: pointer; transition: all 0.15s; }
-    .scorer-tab.active { border-color: var(--accent); color: var(--accent); }
-    .score-detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
-    .score-axis { background: var(--bg3); padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border); }
-    .score-axis-name { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
-    .score-axis-val { font-size: 18px; font-weight: 700; color: var(--text); }
-
-    /* Revision log */
-    .revision-log { display: flex; flex-direction: column; gap: 16px; }
-    .revision-item { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-    .revision-item-header { background: var(--bg3); padding: 8px 14px; font-size: 13px; font-weight: 600; }
-    .revision-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
-    .revision-col { background: var(--bg2); padding: 12px; }
-    .revision-col-title { font-size: 11px; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.08em; color: var(--text3); margin-bottom: 8px; }
-    .revision-col.no-change { opacity: 0.5; }
-
-    /* History modal */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100;
-      display: flex; align-items: center; justify-content: center; padding: 20px; }
-    .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
-      width: 100%; max-width: 600px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }
-    .modal-header { padding: 14px 18px; border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: space-between; }
-    .modal-header h3 { font-size: 15px; font-weight: 600; }
-    .modal-body { flex: 1; overflow-y: auto; padding: 12px; }
-    .history-item { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px;
-      margin-bottom: 6px; cursor: pointer; transition: all 0.15s; }
-    .history-item:hover { background: var(--bg3); border-color: var(--accent); }
-    .history-question { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
-    .history-meta { font-size: 11px; color: var(--text3); }
-
-    /* Status bar */
-    .status-bar { font-size: 12px; color: var(--text3); padding: 6px 0; }
-    .ai-section-label { font-size: 12px; font-weight: 700; color: var(--text3);
-      text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 0 2px; margin-top: 10px; }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: var(--bg2); }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+    button { cursor: pointer; border: none; border-radius: 6px; padding: 6px 14px; font-size: 13px; transition: opacity .15s; }
+    button:hover { opacity: .85; }
+    input, textarea { background: var(--bg3); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 13px; width: 100%; outline: none; }
+    input:focus, textarea:focus { border-color: var(--accent); }
+    .badge { display:inline-block; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:600; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .fade-in { animation: fadeIn .4s ease forwards; }
+    .spinner { display:inline-block; width:14px; height:14px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; }
+    .prose { line-height:1.7; }
+    .prose h1,.prose h2,.prose h3 { margin:.8em 0 .4em; }
+    .prose p { margin:.4em 0; }
+    .prose ul,.prose ol { margin:.4em 0 .4em 1.5em; }
+    .prose table { border-collapse:collapse; width:100%; margin:.6em 0; }
+    .prose table td, .prose table th { border:1px solid var(--border); padding:4px 8px; font-size:12px; }
+    .prose code { background:var(--bg3); padding:1px 5px; border-radius:3px; font-size:12px; }
+    .prose pre { background:var(--bg3); padding:10px; border-radius:6px; overflow-x:auto; margin:.6em 0; }
+    .prose blockquote { border-left:3px solid var(--border); padding-left:10px; color:var(--text2); }
   </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useRef, useCallback, useMemo } = React;
+const API_BASE = "http://localhost:8000"
 
-// -------- 定数 --------
-const API_BASE = "http://localhost:8000";
-const AI_COLORS = { Claude: "#c084fc", ChatGPT: "#22d3a0", Gemini: "#60a5fa", Grok: "#fb923c" };
-const AI_BG = { Claude: "#1e1030", ChatGPT: "#0d2720", Gemini: "#0d1e30", Grok: "#2a1508" };
-const WEIGHTS = { accuracy: 0.30, evidence: 0.20, consistency: 0.15, coverage: 0.15, usefulness: 0.12, brevity: 0.05, revision_quality: 0.03 };
-const ALL_AIS = ["Claude", "ChatGPT", "Gemini", "Grok"];
-const AXIS_LABELS_JA = { accuracy: "正確性", evidence: "根拠", consistency: "一貫性", coverage: "網羅性", usefulness: "実用性", brevity: "簡潔さ", revision_quality: "改訂品質" };
-const AXIS_LABELS_EN = { accuracy: "Accuracy", evidence: "Evidence", consistency: "Consistency", coverage: "Coverage", usefulness: "Usefulness", brevity: "Brevity", revision_quality: "Revision" };
-const MEDALS = ["🥇", "🥈", "🥉"];
-
-// -------- LocalStorage --------
-const LS_KEY = "ai_debate_config";
-const defaultConfig = () => ({
-  anthropic_api_key: "", openai_api_key: "", gemini_api_key: "", grok_api_key: "",
-  enabled_ais: [...ALL_AIS], rounds: 2, enable_revision: true, language: "ja",
-  max_tokens_initial: 2000, max_tokens_eval: 1500, max_tokens_revision: 2000, max_tokens_score: 2000,
-  model_eval: "", model_revision: "", model_scoring: "",
-});
-const loadConfig = () => { try { const s = localStorage.getItem(LS_KEY); return s ? { ...defaultConfig(), ...JSON.parse(s) } : defaultConfig(); } catch { return defaultConfig(); } };
-const saveConfig = (c) => { try { localStorage.setItem(LS_KEY, JSON.stringify(c)); } catch {} };
-
-// -------- ユーティリティ --------
-const calcApiCount = (n, r, rev) => n + n * (n - 1) * r + (rev ? n : 0) + n;
-
-function parseScoreContent(content) {
-  if (!content) return null;
-  try {
-    let c = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    return JSON.parse(c);
-  } catch {
-    const m = content.match(/\{[\s\S]*\}/);
-    if (m) { try { return JSON.parse(m[0]); } catch {} }
-    return null;
-  }
+const AI_COLORS = { Claude:"#c084fc", ChatGPT:"#22d3a0", Gemini:"#60a5fa", Grok:"#fb923c" }
+const AI_BG     = { Claude:"#1e1030", ChatGPT:"#0d2720", Gemini:"#0d1e30", Grok:"#2a1508" }
+const ROLE_LABELS = {
+  lead:               "🎯 Lead",
+  support_critic:     "🔍 批評",
+  support_organizer:  "📋 整理",
+  support_validator:  "📊 検証",
+  support_executor:   "⚡ 実行",
+  support_rewriter:   "✏️ 言い直し",
+  support_confidence: "📈 信頼度",
+  support_uncertainty:"⚠️ 不確実性",
+  support_hypothesis: "🧪 仮説検証",
+  scorer:             "🏆 採点",
 }
+const WEIGHTS = { accuracy:0.30, evidence:0.20, consistency:0.15, coverage:0.15, usefulness:0.12, brevity:0.05, revision_quality:0.03 }
+const SCENE_LABELS = { implementation:"実装・タスク分解", decision:"意思決定支援", logic_check:"論理チェック", research:"情報収集・リサーチ設計" }
+const AXIS_LABELS = { accuracy:"正確性", evidence:"根拠", consistency:"一貫性", coverage:"網羅性", usefulness:"実用性", brevity:"簡潔さ", revision_quality:"改訂品質" }
+const MEDALS = ["🥇","🥈","🥉"]
 
-function calcWeightedTotal(raw, isSelf) {
-  let total = Object.keys(WEIGHTS).reduce((s, k) => s + (raw[k] || 0) * WEIGHTS[k] * 10, 0);
-  return isSelf ? total * 0.5 : total;
-}
+// ─── ScoreBoard ───────────────────────────────────────────
 
-function computeScores(responses) {
-  const scoring = responses.filter(r => r.response_type === "scoring" && !r.error);
-  const perAI = {};
-  for (const sr of scoring) {
-    const parsed = parseScoreContent(sr.content);
-    if (!parsed || !parsed.scores) continue;
-    const VALID_AI_NAMES = ["Claude", "ChatGPT", "Gemini", "Grok"];
-    for (const s of parsed.scores) {
-      if (!VALID_AI_NAMES.includes(s.target_ai)) continue;
-      const isSelf = sr.ai === s.target_ai;
-      const wt = calcWeightedTotal(s, isSelf);
-      if (!perAI[s.target_ai]) perAI[s.target_ai] = [];
-      perAI[s.target_ai].push({ ...s, weighted_total: wt, scorer_ai: sr.ai, is_self: isSelf });
+function computeScoreData(scoreDetails) {
+  const byTarget = {}
+  const axisSum = {}
+  const axisCnt = {}
+  for (const s of scoreDetails) {
+    const t = s.target_ai
+    if (!byTarget[t]) { byTarget[t] = []; axisSum[t] = {}; axisCnt[t] = 0 }
+    byTarget[t].push(s)
+    axisCnt[t]++
+    for (const axis of Object.keys(WEIGHTS)) {
+      axisSum[t][axis] = (axisSum[t][axis] || 0) + (s[axis] || 0)
     }
   }
-  const avg = {};
-  for (const [ai, arr] of Object.entries(perAI)) {
-    avg[ai] = arr.reduce((s, x) => s + x.weighted_total, 0) / arr.length;
+  const avg = {}
+  const axisAvg = {}
+  for (const t of Object.keys(byTarget)) {
+    avg[t] = byTarget[t].reduce((s, x) => s + x.weighted_total, 0) / byTarget[t].length
+    axisAvg[t] = {}
+    for (const axis of Object.keys(WEIGHTS)) {
+      axisAvg[t][axis] = (axisSum[t][axis] || 0) / axisCnt[t]
+    }
   }
-  const ranked = Object.entries(avg).sort((a, b) => b[1] - a[1]);
-  return { perAI, avg, ranked };
+  const ranked = Object.entries(avg).sort((a, b) => b[1] - a[1])
+  return { byTarget, avg, axisAvg, ranked }
 }
 
-// -------- RadarChart --------
-function RadarChart({ data, size = 280 }) {
-  const axes = Object.keys(WEIGHTS);
-  const n = axes.length;
-  const cx = size / 2, cy = size / 2, r = size * 0.35;
-  const angleStep = (Math.PI * 2) / n;
+function RadarChart({ axisAvg }) {
+  const axes = Object.keys(WEIGHTS)
+  const ais = Object.keys(axisAvg)
+  const size = 300, cx = 150, cy = 150, r = 100
+  const n = axes.length
+  const angleStep = (Math.PI * 2) / n
   const getXY = (i, val, maxVal = 10) => {
-    const angle = -Math.PI / 2 + i * angleStep;
-    const rr = r * (val / maxVal);
-    return [cx + rr * Math.cos(angle), cy + rr * Math.sin(angle)];
-  };
-  const getLabel = (i) => {
-    const angle = -Math.PI / 2 + i * angleStep;
-    const rr = r + 22;
-    return [cx + rr * Math.cos(angle), cy + rr * Math.sin(angle)];
-  };
-
-  // グリッド polygon
-  const gridLevels = [2, 4, 6, 8, 10];
-  const gridPolygons = gridLevels.map(lv => {
-    const pts = axes.map((_, i) => getXY(i, lv).join(",")).join(" ");
-    return <polygon key={lv} points={pts} fill="none" stroke="var(--border)" strokeWidth="1" />;
-  });
-
-  // 軸線
-  const axisLines = axes.map((_, i) => {
-    const [x, y] = getXY(i, 10);
-    return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="var(--border)" strokeWidth="1" />;
-  });
-
-  // 各AIの polygon
-  const aiPolygons = Object.entries(data).map(([ai, scores]) => {
-    const pts = axes.map((axis, i) => getXY(i, scores[axis] || 0).join(",")).join(" ");
-    const col = AI_COLORS[ai] || "#888";
-    return (
-      <polygon key={ai} points={pts}
-        fill={col} fillOpacity="0.18"
-        stroke={col} strokeWidth="2"
-        strokeLinejoin="round" />
-    );
-  });
-
-  // ラベル
-  const labels = axes.map((axis, i) => {
-    const [lx, ly] = getLabel(i);
-    return (
-      <text key={axis} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle"
-        fill="var(--text2)" fontSize="10" fontWeight="500">
-        {AXIS_LABELS_JA[axis]}
-      </text>
-    );
-  });
-
+    const angle = -Math.PI / 2 + i * angleStep
+    const rr = r * (val / maxVal)
+    return [cx + rr * Math.cos(angle), cy + rr * Math.sin(angle)]
+  }
+  const gridLevels = [2,4,6,8,10]
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {gridPolygons}
-      {axisLines}
-      {aiPolygons}
-      {labels}
+      {/* Grid */}
+      {gridLevels.map(lv => {
+        const pts = axes.map((_, i) => getXY(i, lv).join(",")).join(" ")
+        return <polygon key={lv} points={pts} fill="none" stroke="var(--border)" strokeWidth="1" />
+      })}
+      {/* Axis lines */}
+      {axes.map((_, i) => {
+        const [x, y] = getXY(i, 10)
+        return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="var(--border)" strokeWidth="1" />
+      })}
+      {/* AI polygons */}
+      {ais.map(ai => {
+        const pts = axes.map((axis, i) => getXY(i, axisAvg[ai][axis] || 0).join(",")).join(" ")
+        return (
+          <polygon key={ai} points={pts}
+            fill={AI_COLORS[ai]} fillOpacity="0.2"
+            stroke={AI_COLORS[ai]} strokeWidth="2" />
+        )
+      })}
+      {/* Labels */}
+      {axes.map((axis, i) => {
+        const [x, y] = getXY(i, 12)
+        return (
+          <text key={i} x={x} y={y} textAnchor="middle" dominantBaseline="middle"
+            fill="var(--text2)" fontSize="10">{AXIS_LABELS[axis]}</text>
+        )
+      })}
     </svg>
-  );
+  )
 }
 
-// -------- ScoreBoard --------
-function ScoreBoard({ responses }) {
-  const [activeScorerTab, setActiveScorerTab] = useState(null);
-  const { perAI, avg, ranked } = useMemo(() => computeScores(responses), [responses]);
-
-  const scorers = [...new Set(responses.filter(r => r.response_type === "scoring" && !r.error).map(r => r.ai))];
-
-  // RadarChart 用データ (avg scores per axis per AI)
-  const radarData = useMemo(() => {
-    const d = {};
-    for (const [ai, arr] of Object.entries(perAI)) {
-      const axisAvg = {};
-      for (const axis of Object.keys(WEIGHTS)) {
-        axisAvg[axis] = arr.reduce((s, x) => s + (x[axis] || 0), 0) / arr.length;
-      }
-      d[ai] = axisAvg;
-    }
-    return d;
-  }, [perAI]);
-
-  // 選択スコアラーの詳細
-  const activeScorer = activeScorerTab || (scorers[0] || null);
-  const scorerDetails = useMemo(() => {
-    if (!activeScorer) return {};
-    const d = {};
-    for (const [ai, arr] of Object.entries(perAI)) {
-      const found = arr.find(x => x.scorer_ai === activeScorer);
-      if (found) d[ai] = found;
-    }
-    return d;
-  }, [perAI, activeScorer]);
-
-  if (ranked.length === 0) {
-    return <div style={{ color: "var(--text3)", textAlign: "center", padding: "40px" }}>採点結果待ち…</div>;
-  }
+function ScoreBoard({ scoreDetails }) {
+  const [activeScorer, setActiveScorer] = React.useState(null)
+  if (!scoreDetails.length) return null
+  const { byTarget, avg, axisAvg, ranked } = computeScoreData(scoreDetails)
+  const scorers = [...new Set(scoreDetails.map(s => s.scorer_ai))]
+  const maxAvg = Math.max(...Object.values(avg))
 
   return (
-    <div className="score-board">
-      {/* Radar */}
-      <div>
-        <div className="score-section-title">レーダーチャート（平均スコア）</div>
-        <div className="radar-wrap"><RadarChart data={radarData} /></div>
-        <div className="radar-legend">
-          {Object.keys(radarData).map(ai => (
-            <div key={ai} className="legend-item">
-              <div className="legend-dot" style={{ background: AI_COLORS[ai] || "#888" }} />
-              {ai}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Ranking */}
-      <div>
-        <div className="score-section-title">ランキング</div>
-        <div className="ranking-list">
-          {ranked.map(([ai, score], i) => (
-            <div key={ai} className="ranking-item">
-              <span className="ranking-medal">{MEDALS[i] || `#${i + 1}`}</span>
-              <span className="ranking-ai" style={{ color: AI_COLORS[ai] || "var(--text)" }}>{ai}</span>
-              <div style={{ flex: 1 }}>
-                <div className="score-bar-bg">
-                  <div className="score-bar-fill" style={{ width: `${score}%`, background: AI_COLORS[ai] || "var(--accent)" }} />
+    <div style={{ background:"var(--bg2)", border:"1px solid var(--border)", borderRadius:10, padding:16, marginTop:16 }}>
+      <h3 style={{ color:"var(--success)", marginBottom:12 }}>🏆 採点結果</h3>
+      <div style={{ display:"flex", gap:16, flexWrap:"wrap" }}>
+        <RadarChart axisAvg={axisAvg} />
+        <div style={{ flex:1, minWidth:200 }}>
+          {/* Ranking */}
+          <div style={{ marginBottom:12 }}>
+            {ranked.map(([ai, score], i) => (
+              <div key={ai} style={{ marginBottom:8 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
+                  <span>{MEDALS[i] || `${i+1}.`}</span>
+                  <span style={{ color:AI_COLORS[ai], fontWeight:700 }}>{ai}</span>
+                  <span style={{ color:"var(--text2)", fontSize:12 }}>{score.toFixed(1)}</span>
+                </div>
+                <div style={{ height:6, background:"var(--bg3)", borderRadius:3, overflow:"hidden" }}>
+                  <div style={{ height:"100%", width:`${(score/maxAvg)*100}%`, background:AI_COLORS[ai], borderRadius:3, transition:"width .5s" }} />
                 </div>
               </div>
-              <span className="ranking-score">{score.toFixed(1)}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 採点者別詳細 */}
-      {scorers.length > 0 && (
-        <div>
-          <div className="score-section-title">採点者別スコア詳細</div>
-          <div className="scorer-tabs">
+            ))}
+          </div>
+          {/* Scorer filter */}
+          <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:8 }}>
+            <button onClick={() => setActiveScorer(null)}
+              style={{ background: activeScorer===null?"var(--accent)":"var(--bg3)", color:"var(--text)", fontSize:11, padding:"3px 8px" }}>
+              全員
+            </button>
             {scorers.map(s => (
-              <button key={s} className={`scorer-tab ${activeScorer === s ? "active" : ""}`}
-                onClick={() => setActiveScorerTab(s)}
-                style={{ borderColor: activeScorer === s ? AI_COLORS[s] : undefined, color: activeScorer === s ? AI_COLORS[s] : undefined }}>
+              <button key={s} onClick={() => setActiveScorer(s)}
+                style={{ background:activeScorer===s?AI_COLORS[s]:"var(--bg3)", color:"var(--text)", fontSize:11, padding:"3px 8px" }}>
                 {s}
               </button>
             ))}
           </div>
-          {Object.entries(scorerDetails).map(([targetAI, detail]) => (
-            <div key={targetAI} style={{ marginBottom: 12, background: "var(--bg3)", borderRadius: 8, padding: "10px 14px", border: "1px solid var(--border)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <span style={{ fontWeight: 600, color: AI_COLORS[targetAI] || "var(--text)" }}>{targetAI}</span>
-                {detail.is_self && <span style={{ fontSize: 10, background: "var(--bg)", color: "var(--text3)", padding: "1px 6px", borderRadius: 10 }}>自己採点 ×0.5</span>}
-                <span style={{ marginLeft: "auto", fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{detail.weighted_total.toFixed(1)}</span>
-              </div>
-              <div className="score-detail-grid">
-                {Object.keys(WEIGHTS).map(axis => (
-                  <div key={axis} className="score-axis">
-                    <div className="score-axis-name">{AXIS_LABELS_JA[axis]}</div>
-                    <div className="score-axis-val">{(detail[axis] || 0).toFixed(1)}</div>
+          {/* Detail */}
+          {activeScorer && byTarget && (
+            <div style={{ maxHeight:200, overflowY:"auto" }}>
+              {Object.entries(byTarget).map(([ai, arr]) => {
+                const detail = arr.find(x => x.scorer_ai === activeScorer)
+                if (!detail) return null
+                return (
+                  <div key={ai} style={{ marginBottom:8, padding:8, background:"var(--bg3)", borderRadius:6, borderLeft:`3px solid ${AI_COLORS[ai]}` }}>
+                    <div style={{ fontWeight:600, color:AI_COLORS[ai], marginBottom:4 }}>{ai} <span style={{ color:"var(--text2)", fontWeight:400, fontSize:11 }}>{detail.weighted_total.toFixed(1)}</span></div>
+                    <div style={{ fontSize:11, color:"var(--text2)" }}>{detail.reason}</div>
                   </div>
-                ))}
-              </div>
-              {detail.reason && (
-                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 8, fontStyle: "italic" }}>
-                  {detail.reason}
-                </div>
-              )}
+                )
+              })}
             </div>
-          ))}
+          )}
         </div>
-      )}
-    </div>
-  );
-}
-
-// -------- RevisionLog --------
-function RevisionLog({ responses }) {
-  const revisions = responses.filter(r => r.response_type === "revision");
-  if (revisions.length === 0) return null;
-  return (
-    <div className="revision-log">
-      {revisions.map(rev => {
-        const initial = responses.find(r => r.id === rev.revision_of);
-        const noChange = rev.content.includes("改訂不要") || rev.content.includes("No Revision Needed");
-        return (
-          <div key={rev.id} className="revision-item">
-            <div className="revision-item-header" style={{ color: AI_COLORS[rev.ai] || "var(--text)" }}>
-              ✏ {rev.ai} の改訂
-            </div>
-            <div className="revision-columns">
-              <div className="revision-col">
-                <div className="revision-col-title">初回回答</div>
-                {initial ? (
-                  <div className="md-content" style={{ fontSize: 12, color: "var(--text2)" }}
-                    dangerouslySetInnerHTML={{ __html: marked.parse(initial.content || "") }} />
-                ) : <div style={{ color: "var(--text3)", fontSize: 12 }}>初回回答なし</div>}
-              </div>
-              <div className={`revision-col ${noChange ? "no-change" : ""}`}>
-                <div className="revision-col-title">改訂版 {noChange && "（改訂不要）"}</div>
-                <div className="md-content" style={{ fontSize: 12, color: "var(--text2)" }}
-                  dangerouslySetInnerHTML={{ __html: marked.parse(rev.content || "") }} />
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// -------- ResponseCard --------
-function ResponseCard({ resp, isNew }) {
-  const [open, setOpen] = useState(false);
-
-  const borderColor = resp.response_type === "revision" ? "#a855f7"
-    : resp.response_type === "scoring" ? "#22c55e"
-    : AI_COLORS[resp.ai] || "#888";
-
-  const phaseTag = {
-    initial: { label: "初回", bg: AI_BG[resp.ai] || "var(--bg3)", color: AI_COLORS[resp.ai] || "#888" },
-    evaluation: { label: "評価", bg: "var(--bg3)", color: "var(--text2)" },
-    revision: { label: "✏ 改訂", bg: "#2a1040", color: "#a855f7" },
-    scoring: { label: "採点", bg: "#0a2010", color: "#22c55e" },
-  }[resp.phase] || { label: resp.phase, bg: "var(--bg3)", color: "var(--text2)" };
-
-  let subtitle = "";
-  if (resp.response_type === "evaluation" && resp.target_ai) subtitle = `→ ${resp.target_ai} を評価`;
-  if (resp.response_type === "scoring") subtitle = "全回答を採点";
-  if (resp.round > 0) subtitle = (subtitle ? subtitle + " " : "") + `Round ${resp.round}`;
-
-  return (
-    <div className={`response-card ${isNew ? "new-entry" : ""}`}
-      style={{ borderLeft: `3px solid ${borderColor}` }}>
-      <div className="card-header" onClick={() => setOpen(!open)}>
-        <div className="card-ai-dot" style={{ background: AI_COLORS[resp.ai] || "#888" }} />
-        <span className="card-title" style={{ color: AI_COLORS[resp.ai] || "var(--text)" }}>{resp.ai}</span>
-        {subtitle && <span className="card-meta">{subtitle}</span>}
-        <span className="card-phase-tag" style={{ background: phaseTag.bg, color: phaseTag.color }}>
-          {phaseTag.label}
-        </span>
-        {resp.error && <span style={{ color: "var(--error)", fontSize: 11 }}>⚠ エラー</span>}
-        <span className="card-expand-icon">{open ? "▲" : "▼"}</span>
       </div>
-      {open && (
-        <div className={`card-body ${resp.error ? "error" : ""}`}>
+      {/* Axis legend */}
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:8 }}>
+        {Object.keys(AI_COLORS).filter(ai => axisAvg[ai]).map(ai => (
+          <span key={ai} style={{ color:AI_COLORS[ai], fontSize:11 }}>■ {ai}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── ProgressBar ─────────────────────────────────────────
+
+function ProgressBar({ stepResponses, expectedSteps, isRunning }) {
+  const completed = stepResponses.length
+  const pct = expectedSteps > 0 ? Math.round((completed / expectedSteps) * 100) : 0
+  const lastStep = stepResponses[stepResponses.length - 1]
+  const label = isRunning
+    ? lastStep ? `${ROLE_LABELS[lastStep.role] || lastStep.role} — ${lastStep.ai}` : "開始中..."
+    : completed > 0 ? "完了" : ""
+  if (!isRunning && completed === 0) return null
+  return (
+    <div style={{ background:"var(--bg2)", border:"1px solid var(--border)", borderRadius:8, padding:"10px 14px", marginBottom:12 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+        <span style={{ color:"var(--text2)", fontSize:12 }}>{label}</span>
+        <span style={{ color:"var(--text2)", fontSize:12 }}>{completed}/{expectedSteps} ({pct}%)</span>
+      </div>
+      <div style={{ height:6, background:"var(--bg3)", borderRadius:3, overflow:"hidden" }}>
+        <div style={{ height:"100%", width:`${pct}%`, background:"var(--accent)", borderRadius:3, transition:"width .4s" }} />
+      </div>
+    </div>
+  )
+}
+
+// ─── StepCard ─────────────────────────────────────────────
+
+function StepCard({ resp, isNew }) {
+  const [expanded, setExpanded] = React.useState(true)
+  const borderColor = resp.role === "scorer" ? "var(--success)" : AI_COLORS[resp.ai]
+  const opacity = resp.role.startsWith("support_") ? 0.85 : 1
+  return (
+    <div className={isNew ? "fade-in" : ""}
+      style={{ background: AI_BG[resp.ai] || "var(--bg2)", border:`1px solid ${borderColor}`, borderLeft:`3px solid ${borderColor}`,
+        borderRadius:8, marginBottom:10, opacity }}>
+      <div onClick={() => setExpanded(v => !v)}
+        style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", cursor:"pointer", userSelect:"none" }}>
+        <span className="badge" style={{ background:AI_COLORS[resp.ai], color:"#000", opacity }}>
+          {resp.ai}
+        </span>
+        <span style={{ color:"var(--text2)", fontSize:12 }}>{ROLE_LABELS[resp.role] || resp.role}</span>
+        <span style={{ color:"var(--text3)", fontSize:11 }}>Step {resp.step_index}</span>
+        <span style={{ marginLeft:"auto", color:"var(--text3)", fontSize:11 }}>{expanded ? "▲" : "▼"}</span>
+      </div>
+      {expanded && (
+        <div style={{ padding:"0 14px 14px" }}>
           {resp.error
-            ? <div>エラー: {resp.error}</div>
-            : <div className="md-content"
+            ? <div style={{ color:"var(--error)", fontSize:13 }}>⚠ {resp.error}</div>
+            : <div className="prose" style={{ fontSize:13 }}
                 dangerouslySetInnerHTML={{ __html: marked.parse(resp.content || "") }} />
           }
         </div>
       )}
     </div>
-  );
+  )
 }
 
-// -------- ProgressBar --------
-function ProgressBar({ phase, done, total }) {
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-  return (
-    <div className="progress-wrap">
-      <div className="progress-info">
-        <span className="progress-phase">{phase}</span>
-        <span className="progress-count">{done} / {total} ({pct}%)</span>
-      </div>
-      <div className="progress-bar-bg">
-        <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
+// ─── FlowTimeline ─────────────────────────────────────────
 
-// -------- ConfigPanel --------
-function ConfigPanel({ config, onChange }) {
-  const [open, setOpen] = useState(true);
-  const n = config.enabled_ais.length;
-  const apiCount = calcApiCount(n, config.rounds, config.enable_revision);
+function FlowTimeline({ stepResponses, newStepIds, isRunning, runningInfo }) {
+  if (stepResponses.length === 0 && !isRunning) return null
 
-  const toggleAI = (ai) => {
-    const cur = config.enabled_ais;
-    if (cur.includes(ai)) {
-      if (cur.length <= 2) return; // 最低2つ
-      onChange({ ...config, enabled_ais: cur.filter(a => a !== ai) });
-    } else {
-      onChange({ ...config, enabled_ais: [...cur, ai] });
-    }
-  };
+  // Group parallel steps (same depends_on level approximated by grouping consecutive same-timestamp arrivals)
+  // Simple grouping: steps that have the same step_index batch (parallel steps arrive close together)
+  // For display: group by "wave" — steps that can only run after same predecessor
+  // We detect parallel by: more than 1 step arriving for the same "level"
+  // Simplification: group consecutive steps with gap < 1s by index proximity
+  // Actually: use step_index parity — if multiple steps share no sequential dependency, show side by side
+  // Simplest: just show all steps in order, mark parallel with a note
 
   return (
-    <div className="config-panel">
-      <div className="config-header" onClick={() => setOpen(!open)}>
-        <h2>⚙ 設定</h2>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span className="api-count">API 呼び出し合計: <span>{apiCount}</span> 回</span>
-          <span style={{ color: "var(--text3)", fontSize: 12 }}>{open ? "▲" : "▼"}</span>
+    <div>
+      {stepResponses.map(resp => (
+        <StepCard key={resp.id} resp={resp} isNew={newStepIds.has(resp.id)} />
+      ))}
+      {isRunning && (
+        <div style={{ display:"flex", alignItems:"center", gap:8, padding:12, color:"var(--text2)", fontSize:13 }}>
+          <span className="spinner" />
+          {runningInfo ? `${runningInfo.ai} が ${ROLE_LABELS[runningInfo.role] || runningInfo.role} を実行中...` : "処理中..."}
         </div>
+      )}
+    </div>
+  )
+}
+
+// ─── SceneSelector ───────────────────────────────────────
+
+function SceneSelector({ scene, setScene, question, config, onDetect, detectedScene, detectLoading, autoMode, setAutoMode, scenesMeta }) {
+  return (
+    <div>
+      <div style={{ display:"flex", gap:6, marginBottom:10 }}>
+        <button onClick={() => setAutoMode(false)}
+          style={{ background: !autoMode ? "var(--accent)" : "var(--bg3)", color:"var(--text)", flex:1 }}>
+          手動選択
+        </button>
+        <button onClick={() => setAutoMode(true)}
+          style={{ background: autoMode ? "var(--accent)" : "var(--bg3)", color:"var(--text)", flex:1 }}>
+          🤖 自動判定
+        </button>
+      </div>
+
+      {autoMode ? (
+        <div>
+          <button onClick={onDetect} disabled={detectLoading || !question.trim()}
+            style={{ background:"var(--accent)", color:"#fff", width:"100%", marginBottom:8, padding:"8px 0" }}>
+            {detectLoading ? <span className="spinner" /> : "シーンを自動判定"}
+          </button>
+          {detectedScene && (
+            <div style={{ background: detectedScene.confidence < 0.5 ? "#2a1a0a" : "var(--bg3)",
+              border:`1px solid ${detectedScene.confidence < 0.5 ? "var(--warning)" : "var(--border)"}`,
+              borderRadius:8, padding:12, marginBottom:8 }}>
+              <div style={{ fontWeight:700, marginBottom:4 }}>
+                {detectedScene.confidence < 0.5 ? "⚠️" : "✅"} {SCENE_LABELS[detectedScene.scene]}
+              </div>
+              <div style={{ color:"var(--text2)", fontSize:12, marginBottom:6 }}>
+                確信度: {Math.round(detectedScene.confidence * 100)}%
+              </div>
+              <div style={{ color:"var(--text2)", fontSize:12, marginBottom:8 }}>{detectedScene.reason}</div>
+              <div style={{ display:"flex", gap:6 }}>
+                <button onClick={() => { setScene(detectedScene.scene); setAutoMode(false) }}
+                  style={{ background:"var(--success)", color:"#fff", flex:1 }}>このシーンで実行</button>
+                <button onClick={() => setAutoMode(false)}
+                  style={{ background:"var(--bg2)", color:"var(--text)", flex:1 }}>変更する</button>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+          {scenesMeta.map(s => (
+            <div key={s.id} onClick={() => setScene(s.id)}
+              style={{ padding:"10px 12px", borderRadius:8, cursor:"pointer", userSelect:"none",
+                background: scene === s.id ? "var(--bg3)" : "var(--bg2)",
+                border:`1px solid ${scene === s.id ? "var(--accent)" : "var(--border)"}` }}>
+              <div style={{ fontWeight:600, marginBottom:4,
+                color: scene === s.id ? "var(--accent)" : "var(--text)" }}>{s.name}</div>
+              <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+                <span className="badge" style={{ background:AI_COLORS[s.lead_ai], color:"#000", fontSize:10 }}>
+                  🎯 {s.lead_ai}
+                </span>
+                {s.support_ais.map(ai => (
+                  <span key={ai} className="badge" style={{ background:"var(--bg3)", color:AI_COLORS[ai], border:`1px solid ${AI_COLORS[ai]}`, fontSize:10 }}>
+                    {ai}
+                  </span>
+                ))}
+                {s.scorer_default && <span className="badge" style={{ background:"#1a2a1a", color:"var(--success)", fontSize:10 }}>採点あり</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── ConfigPanel ─────────────────────────────────────────
+
+function ConfigPanel({ config, setConfig, scene, scenesMeta, open, setOpen }) {
+  const sceneMeta = scenesMeta.find(s => s.id === scene)
+  const scorerDefault = sceneMeta?.scorer_default ?? false
+
+  React.useEffect(() => {
+    if (config.enableScorer === undefined) {
+      setConfig(c => ({...c, enableScorer: scorerDefault}))
+    }
+  }, [scene])
+
+  return (
+    <div style={{ background:"var(--bg2)", border:"1px solid var(--border)", borderRadius:8, marginBottom:12 }}>
+      <div onClick={() => setOpen(v => !v)}
+        style={{ padding:"10px 14px", cursor:"pointer", display:"flex", justifyContent:"space-between", userSelect:"none" }}>
+        <span style={{ fontWeight:600 }}>⚙️ 設定</span>
+        <span style={{ color:"var(--text3)" }}>{open ? "▲" : "▼"}</span>
       </div>
       {open && (
-        <div className="config-body">
-          {/* AI選択 */}
-          <div className="config-row">
-            <div className="config-group">
-              <label>参加 AI（最低 2 つ）</label>
-              <div className="ai-toggles">
-                {ALL_AIS.map(ai => {
-                  const active = config.enabled_ais.includes(ai);
-                  return (
-                    <button key={ai} className="ai-toggle"
-                      style={{
-                        background: active ? AI_COLORS[ai] + "22" : "var(--bg3)",
-                        color: active ? AI_COLORS[ai] : "var(--text3)",
-                        borderColor: active ? AI_COLORS[ai] : "var(--border)",
-                      }}
-                      onClick={() => toggleAI(ai)}>{ai}</button>
-                  );
-                })}
-              </div>
-            </div>
-            {/* ラウンド数 */}
-            <div className="config-group">
-              <label>評価ラウンド数</label>
-              <div className="round-btns">
-                {[1, 2, 3, 4, 5].map(r => (
-                  <button key={r} className={`round-btn ${config.rounds === r ? "active" : ""}`}
-                    onClick={() => onChange({ ...config, rounds: r })}>{r}</button>
-                ))}
-              </div>
-            </div>
-            {/* 改訂 */}
-            <div className="config-group">
-              <label>自己改訂フェーズ</label>
-              <div className="toggle-switch" onClick={() => onChange({ ...config, enable_revision: !config.enable_revision })}>
-                <div className={`toggle-track ${config.enable_revision ? "on" : ""}`}>
-                  <div className="toggle-thumb" />
-                </div>
-                <span style={{ fontSize: 13, color: config.enable_revision ? "var(--text)" : "var(--text3)" }}>
-                  {config.enable_revision ? "ON" : "OFF"}
-                </span>
-              </div>
-            </div>
-            {/* 言語 */}
-            <div className="config-group">
-              <label>言語</label>
-              <div className="lang-btns">
-                <button className={`lang-btn ${config.language === "ja" ? "active" : ""}`}
-                  onClick={() => onChange({ ...config, language: "ja" })}>日本語</button>
-                <button className={`lang-btn ${config.language === "en" ? "active" : ""}`}
-                  onClick={() => onChange({ ...config, language: "en" })}>English</button>
-              </div>
+        <div style={{ padding:"0 14px 14px" }}>
+          {/* API Keys */}
+          <div style={{ marginBottom:10 }}>
+            <label style={{ display:"block", color:"var(--text2)", fontSize:12, marginBottom:4 }}>OpenAI API Key</label>
+            <input type="password" value={config.openaiKey || ""} placeholder="sk-..."
+              onChange={e => setConfig(c => ({...c, openaiKey: e.target.value}))} />
+          </div>
+          <div style={{ marginBottom:10 }}>
+            <label style={{ display:"block", color:"var(--text2)", fontSize:12, marginBottom:4 }}>Gemini API Key</label>
+            <input type="password" value={config.geminiKey || ""} placeholder="AIza..."
+              onChange={e => setConfig(c => ({...c, geminiKey: e.target.value}))} />
+          </div>
+          <div style={{ marginBottom:10 }}>
+            <label style={{ display:"block", color:"var(--text2)", fontSize:12, marginBottom:4 }}>Grok API Key</label>
+            <input type="password" value={config.grokKey || ""} placeholder="xai-..."
+              onChange={e => setConfig(c => ({...c, grokKey: e.target.value}))} />
+          </div>
+          {/* Language */}
+          <div style={{ marginBottom:10 }}>
+            <label style={{ display:"block", color:"var(--text2)", fontSize:12, marginBottom:4 }}>言語</label>
+            <div style={{ display:"flex", gap:6 }}>
+              {["ja","en"].map(l => (
+                <button key={l} onClick={() => setConfig(c => ({...c, language: l}))}
+                  style={{ flex:1, background:(config.language||"ja")===l?"var(--accent)":"var(--bg3)", color:"var(--text)" }}>
+                  {l === "ja" ? "日本語" : "English"}
+                </button>
+              ))}
             </div>
           </div>
-          {/* API keys */}
-          <div className="config-row">
-            <div className="config-group" style={{ flex: 1 }}>
-              <label>Anthropic API Key</label>
-              <input type="password" placeholder="sk-ant-..." value={config.anthropic_api_key}
-                onChange={e => onChange({ ...config, anthropic_api_key: e.target.value })} />
-            </div>
-            <div className="config-group" style={{ flex: 1 }}>
-              <label>OpenAI API Key</label>
-              <input type="password" placeholder="sk-..." value={config.openai_api_key}
-                onChange={e => onChange({ ...config, openai_api_key: e.target.value })} />
-            </div>
-            <div className="config-group" style={{ flex: 1 }}>
-              <label>Gemini API Key</label>
-              <input type="password" placeholder="AIza..." value={config.gemini_api_key}
-                onChange={e => onChange({ ...config, gemini_api_key: e.target.value })} />
-            </div>
-            <div className="config-group" style={{ flex: 1 }}>
-              <label>Grok API Key</label>
-              <input type="password" placeholder="xai-..." value={config.grok_api_key}
-                onChange={e => onChange({ ...config, grok_api_key: e.target.value })} />
-            </div>
+          {/* Scorer toggle */}
+          <div style={{ marginBottom:10 }}>
+            <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer" }}>
+              <div onClick={() => setConfig(c => ({...c, enableScorer: !c.enableScorer}))}
+                style={{ width:36, height:20, borderRadius:10, background:(config.enableScorer ?? scorerDefault)?"var(--success)":"var(--bg3)",
+                  position:"relative", transition:"background .2s" }}>
+                <div style={{ position:"absolute", top:2, left:(config.enableScorer ?? scorerDefault)?18:2, width:16, height:16,
+                  borderRadius:"50%", background:"#fff", transition:"left .2s" }} />
+              </div>
+              <span style={{ fontSize:13, color:"var(--text2)" }}>
+                採点フェーズ {(config.enableScorer ?? scorerDefault) ? "ON" : "OFF"}
+              </span>
+            </label>
+          </div>
+          {/* Model overrides */}
+          <div>
+            <div style={{ color:"var(--text2)", fontSize:12, marginBottom:6 }}>モデルオーバーライド（空=デフォルト）</div>
+            {["Claude","ChatGPT","Gemini","Grok"].map(ai => (
+              <div key={ai} style={{ display:"flex", alignItems:"center", gap:6, marginBottom:6 }}>
+                <span style={{ color:AI_COLORS[ai], fontSize:12, width:64, flexShrink:0 }}>{ai}</span>
+                <input value={(config.modelOverrides||{})[ai] || ""} placeholder="デフォルト"
+                  onChange={e => setConfig(c => ({...c, modelOverrides:{...(c.modelOverrides||{}), [ai]:e.target.value}}))}
+                  style={{ flex:1 }} />
+              </div>
+            ))}
           </div>
         </div>
       )}
     </div>
-  );
+  )
 }
 
-// -------- HistoryModal --------
+// ─── HistoryModal ─────────────────────────────────────────
+
 function HistoryModal({ onClose, onLoad }) {
-  const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [jobs, setJobs] = React.useState([])
+  const [loading, setLoading] = React.useState(true)
 
-  useEffect(() => {
-    fetch(`${API_BASE}/api/debate/history`)
-      .then(r => r.json())
-      .then(data => { setJobs(data); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, []);
+  React.useEffect(() => {
+    fetch(`${API_BASE}/api/history`).then(r => r.json()).then(j => { setJobs(j); setLoading(false) }).catch(() => setLoading(false))
+  }, [])
 
-  const handleClick = async (jobId) => {
-    try {
-      const res = await fetch(`${API_BASE}/api/debate/history/${jobId}`);
-      const data = await res.json();
-      onLoad(data);
-      onClose();
-    } catch (e) {
-      alert("履歴の読み込みに失敗しました");
-    }
-  };
+  async function loadJob(jobId) {
+    const r = await fetch(`${API_BASE}/api/history/${jobId}`)
+    const data = await r.json()
+    onLoad(data)
+    onClose()
+  }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>📂 討論履歴</h3>
-          <button className="btn btn-secondary btn-sm" onClick={onClose}>✕</button>
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.7)", zIndex:100, display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ background:"var(--bg2)", border:"1px solid var(--border)", borderRadius:10, width:600, maxHeight:"80vh", overflow:"hidden", display:"flex", flexDirection:"column" }}>
+        <div style={{ padding:"14px 16px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between" }}>
+          <h3>📂 履歴</h3>
+          <button onClick={onClose} style={{ background:"var(--bg3)", color:"var(--text)" }}>✕</button>
         </div>
-        <div className="modal-body">
-          {loading ? (
-            <div style={{ textAlign: "center", padding: 30, color: "var(--text3)" }}>読み込み中…</div>
-          ) : jobs.length === 0 ? (
-            <div style={{ textAlign: "center", padding: 30, color: "var(--text3)" }}>履歴がありません</div>
-          ) : jobs.map(job => (
-            <div key={job.id} className="history-item" onClick={() => handleClick(job.id)}>
-              <div className="history-question">{job.question}</div>
-              <div className="history-meta">
-                {new Date(job.started_at).toLocaleString("ja")} ·
-                ラウンド {job.max_rounds} ·
-                <span style={{ color: job.status === "finished" ? "var(--success)" : "var(--text3)" }}> {job.status}</span>
+        <div style={{ overflowY:"auto", flex:1 }}>
+          {loading ? <div style={{ padding:20, textAlign:"center", color:"var(--text2)" }}>読み込み中...</div>
+          : jobs.length === 0 ? <div style={{ padding:20, textAlign:"center", color:"var(--text2)" }}>履歴がありません</div>
+          : jobs.map(j => (
+            <div key={j.id} onClick={() => loadJob(j.id)}
+              style={{ padding:"12px 16px", borderBottom:"1px solid var(--border)", cursor:"pointer" }}
+              onMouseEnter={e => e.currentTarget.style.background="var(--bg3)"}
+              onMouseLeave={e => e.currentTarget.style.background=""}>
+              <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:4 }}>
+                <span className="badge" style={{ background:"var(--bg3)", color:"var(--accent)", fontSize:11 }}>
+                  {SCENE_LABELS[j.scene] || j.scene}
+                </span>
+                <span className="badge" style={{ background: j.status==="finished"?"#0d2a0d":"var(--bg3)",
+                  color: j.status==="finished"?"var(--success)":"var(--text2)", fontSize:11 }}>
+                  {j.status}
+                </span>
+                <span style={{ color:"var(--text3)", fontSize:11, marginLeft:"auto" }}>
+                  {new Date(j.started_at).toLocaleString()}
+                </span>
+              </div>
+              <div style={{ color:"var(--text2)", fontSize:13 }}>
+                {(j.question || "").slice(0, 60)}{(j.question||"").length > 60 ? "..." : ""}
               </div>
             </div>
           ))}
         </div>
       </div>
     </div>
-  );
+  )
 }
 
-// -------- RoundSection --------
-function RoundSection({ label, resps, newIds }) {
-  if (resps.length === 0) return null;
-  return (
-    <div className="round-section">
-      <div className="round-label">{label}</div>
-      {resps.map(r => <ResponseCard key={r.id} resp={r} isNew={newIds.has(r.id)} />)}
-    </div>
-  );
-}
+// ─── App ──────────────────────────────────────────────────
 
-// -------- Main App --------
 function App() {
-  const [config, setConfig] = useState(loadConfig);
-  const [question, setQuestion] = useState("");
-  const [responses, setResponses] = useState([]);
-  const [running, setRunning] = useState(false);
-  const [activeTab, setActiveTab] = useState("all");
-  const [phase, setPhase] = useState("");
-  const [totalExpected, setTotalExpected] = useState(0);
-  const [jobId, setJobId] = useState("");
-  const [showHistory, setShowHistory] = useState(false);
-  const [newIds, setNewIds] = useState(new Set());
-  const [unread, setUnread] = useState({});
-  const abortRef = useRef(null);
+  const [config, setConfig] = React.useState(() => {
+    try { return JSON.parse(localStorage.getItem("sceneRouterConfig") || "{}") } catch { return {} }
+  })
+  const [scene, setScene] = React.useState("implementation")
+  const [question, setQuestion] = React.useState("")
+  const [stepResponses, setStepResponses] = React.useState([])
+  const [scoreDetails, setScoreDetails] = React.useState([])
+  const [isRunning, setIsRunning] = React.useState(false)
+  const [jobId, setJobId] = React.useState("")
+  const [totalSteps, setTotalSteps] = React.useState(0)
+  const [detectedScene, setDetectedScene] = React.useState(null)
+  const [autoMode, setAutoMode] = React.useState(false)
+  const [detectLoading, setDetectLoading] = React.useState(false)
+  const [showHistory, setShowHistory] = React.useState(false)
+  const [scenesMeta, setScenesMeta] = React.useState([])
+  const [showConfig, setShowConfig] = React.useState(true)
+  const [newStepIds, setNewStepIds] = React.useState(new Set())
+  const [runningInfo, setRunningInfo] = React.useState(null)
+  const abortRef = React.useRef(null)
 
-  // config変更時にlocalStorageに保存
-  useEffect(() => { saveConfig(config); }, [config]);
+  React.useEffect(() => {
+    fetch(`${API_BASE}/api/scenes`).then(r => r.json()).then(setScenesMeta).catch(() => {})
+  }, [])
 
-  // 新着IDを3秒後に削除
-  useEffect(() => {
-    if (newIds.size === 0) return;
-    const t = setTimeout(() => setNewIds(new Set()), 3000);
-    return () => clearTimeout(t);
-  }, [newIds]);
+  React.useEffect(() => {
+    localStorage.setItem("sceneRouterConfig", JSON.stringify({...config, scene}))
+  }, [config, scene])
 
-  const getPhaseLabel = (resps) => {
-    const last = resps[resps.length - 1];
-    if (!last) return "待機中";
-    const p = last.phase;
-    if (p === "initial") return "初回回答中…";
-    if (p === "evaluation") return `相互評価中 Round ${last.round}…`;
-    if (p === "revision") return "自己改訂中…";
-    if (p === "scoring") return "採点中…";
-    return p;
-  };
+  // シーン変更時にエネーブルスコアーをリセット
+  React.useEffect(() => {
+    const meta = scenesMeta.find(s => s.id === scene)
+    if (meta) setConfig(c => ({...c, enableScorer: meta.scorer_default}))
+  }, [scene, scenesMeta])
 
-  const handleStart = async () => {
-    if (!question.trim()) { alert("質問を入力してください"); return; }
-    setResponses([]);
-    setRunning(true);
-    setPhase("接続中…");
-    setNewIds(new Set());
-    setUnread({});
+  async function handleDetect() {
+    if (!question.trim() || !config.geminiKey) { alert("質問と Gemini API キーを入力してください"); return }
+    setDetectLoading(true)
+    try {
+      const r = await fetch(`${API_BASE}/api/scene/detect`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ question, gemini_api_key: config.geminiKey }),
+      })
+      const data = await r.json()
+      setDetectedScene(data)
+    } catch { alert("シーン判定に失敗しました") }
+    setDetectLoading(false)
+  }
 
-    const n = config.enabled_ais.length;
-    const expected = calcApiCount(n, config.rounds, config.enable_revision);
-    setTotalExpected(expected);
+  async function startFlow() {
+    if (!question.trim()) { alert("質問を入力してください"); return }
+    setStepResponses([])
+    setScoreDetails([])
+    setJobId("")
+    setTotalSteps(0)
+    setRunningInfo(null)
+    setIsRunning(true)
+    setShowConfig(false)
 
-    const body = JSON.stringify({
+    const sceneMeta = scenesMeta.find(s => s.id === scene)
+    const body = {
       question,
-      rounds: config.rounds,
-      anthropic_api_key: config.anthropic_api_key,
-      openai_api_key: config.openai_api_key,
-      gemini_api_key: config.gemini_api_key,
-      grok_api_key: config.grok_api_key,
-      enabled_ais: config.enabled_ais,
-      language: config.language,
-      enable_revision: config.enable_revision,
-      max_tokens_initial: config.max_tokens_initial,
-      max_tokens_eval: config.max_tokens_eval,
-      max_tokens_revision: config.max_tokens_revision,
-      max_tokens_score: config.max_tokens_score,
-      model_eval: config.model_eval,
-      model_revision: config.model_revision,
-      model_scoring: config.model_scoring,
-    });
-
-    const controller = new AbortController();
-    abortRef.current = controller;
+      scene,
+      enable_scorer: config.enableScorer ?? (sceneMeta?.scorer_default ?? false),
+      openai_api_key: config.openaiKey || "",
+      gemini_api_key: config.geminiKey || "",
+      grok_api_key: config.grokKey || "",
+      language: config.language || "ja",
+      model_overrides: config.modelOverrides || {},
+    }
+    const expectedTotal = sceneMeta ? 1 + sceneMeta.support_ais.length : 3
 
     try {
-      const res = await fetch(`${API_BASE}/api/debate/stream`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body,
-        signal: controller.signal,
-      });
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
+      const ctrl = new AbortController()
+      abortRef.current = ctrl
+      const resp = await fetch(`${API_BASE}/api/flow/stream`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(body), signal: ctrl.signal,
+      })
+      if (!resp.ok) {
+        const err = await resp.json()
+        alert(err.detail || "エラーが発生しました")
+        setIsRunning(false); return
+      }
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ""
       while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+        const {done, value} = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, {stream:true})
+        const lines = buf.split("\n")
+        buf = lines.pop()
         for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const raw = line.slice(6).trim();
-          if (!raw) continue;
+          if (!line.startsWith("data: ")) continue
+          const raw = line.slice(6).trim()
+          if (!raw || raw.startsWith(":")) continue
           try {
-            const msg = JSON.parse(raw);
-            if (msg.type === "response") {
-              const r = msg.data;
-              setResponses(prev => [...prev, r]);
-              setNewIds(prev => new Set([...prev, r.id]));
-              setPhase(getPhaseLabel([...[], r]));
-              // 未読バッジ
-              setUnread(prev => {
-                const next = { ...prev };
-                // 全体タブ以外
-                const tabs = ["all", ...ALL_AIS, "score"];
-                for (const t of tabs) {
-                  if (t === activeTab) continue;
-                  let relevant = false;
-                  if (t === "all") relevant = true;
-                  else if (t === "score" && r.response_type === "scoring") relevant = true;
-                  else if (ALL_AIS.includes(t)) {
-                    relevant = r.ai === t || r.target_ai === t;
-                  }
-                  if (relevant) next[t] = (next[t] || 0) + 1;
-                }
-                return next;
-              });
-            } else if (msg.type === "complete") {
-              setJobId(msg.job_id || "");
-              setPhase("完了");
-              setRunning(false);
+            const ev = JSON.parse(raw)
+            if (ev.type === "step_complete") {
+              const d = ev.data
+              setRunningInfo({ ai: d.ai, role: d.role })
+              setStepResponses(prev => [...prev, d])
+              setNewStepIds(prev => {
+                const n = new Set(prev); n.add(d.id)
+                setTimeout(() => setNewStepIds(p => { const m = new Set(p); m.delete(d.id); return m }), 3000)
+                return n
+              })
+            } else if (ev.type === "score_complete") {
+              setScoreDetails(prev => [...prev, ev.data])
+            } else if (ev.type === "complete") {
+              setJobId(ev.job_id); setTotalSteps(ev.total_steps); setIsRunning(false); setRunningInfo(null)
             }
           } catch {}
         }
       }
-    } catch (e) {
-      if (e.name !== "AbortError") {
-        setPhase("エラー: " + e.message);
-      }
-    } finally {
-      setRunning(false);
+    } catch(e) {
+      if (e.name !== "AbortError") console.error(e)
     }
-  };
+    setIsRunning(false); setRunningInfo(null)
+  }
 
-  const handleStop = () => {
-    if (abortRef.current) { abortRef.current.abort(); }
-    setRunning(false);
-    setPhase("停止");
-  };
+  function stopFlow() {
+    if (abortRef.current) abortRef.current.abort()
+    setIsRunning(false); setRunningInfo(null)
+  }
 
-  const handleDownload = () => {
-    const blob = new Blob([JSON.stringify({ config, responses }, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `debate_${Date.now()}.json`;
-    a.click();
-  };
+  function downloadJson() {
+    const blob = new Blob([JSON.stringify({config, scene, stepResponses, scoreDetails}, null, 2)], {type:"application/json"})
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `scene-router-${Date.now()}.json`; a.click()
+  }
 
-  const handleLoadHistory = (data) => {
-    if (!data.responses) return;
-    setResponses(data.responses.map(r => ({
-      ...r,
-      response_type: r.response_type,
-    })));
-    setPhase("履歴読み込み");
-    setJobId(data.job?.id || "");
-  };
+  function loadHistoryData(data) {
+    if (!data.steps) return
+    const steps = data.steps.map(s => ({...s, id: s.id, ai: s.ai, role: s.role, step_index: s.step_index, content: s.content, error: s.error}))
+    setStepResponses(steps)
+    setScoreDetails(data.scores || [])
+    if (data.job) { setScene(data.job.scene || "implementation"); setJobId(data.job.id || "") }
+  }
 
-  const handleTabClick = (tab) => {
-    setActiveTab(tab);
-    setUnread(prev => ({ ...prev, [tab]: 0 }));
-  };
-
-  // タブ表示用フィルタ
-  const tabResponses = useMemo(() => {
-    const tabs = {};
-    tabs["all"] = responses;
-    for (const ai of ALL_AIS) {
-      tabs[ai] = responses.filter(r => r.ai === ai || r.target_ai === ai);
-    }
-    tabs["score"] = responses.filter(r => r.response_type === "scoring");
-    return tabs;
-  }, [responses]);
-
-  // 全体タブ: フェーズ別にグループ化
-  const groupedAll = useMemo(() => {
-    const groups = {};
-    for (const r of responses) {
-      let key;
-      if (r.phase === "initial") key = "初回回答";
-      else if (r.phase === "evaluation") key = `評価 Round ${r.round}`;
-      else if (r.phase === "revision") key = "自己改訂";
-      else if (r.phase === "scoring") key = "採点";
-      else key = r.phase;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(r);
-    }
-    return groups;
-  }, [responses]);
-
-  const TABS = [
-    { id: "all", label: "全体" },
-    ...ALL_AIS.map(ai => ({ id: ai, label: ai, color: AI_COLORS[ai] })),
-    { id: "score", label: "スコア" },
-  ];
+  const sceneMeta = scenesMeta.find(s => s.id === scene)
+  const expectedSteps = sceneMeta ? 1 + sceneMeta.support_ais.length : 3
 
   return (
-    <div className="app">
+    <div style={{ maxWidth:1200, margin:"0 auto", padding:16 }}>
       {/* Header */}
-      <div className="header">
-        <h1>AI Debate System</h1>
-        <div className="header-actions">
-          {jobId && <span style={{ fontSize: 12, color: "var(--text3)" }}>job: {jobId.slice(0, 8)}…</span>}
-          <button className="btn btn-secondary btn-sm" onClick={() => setShowHistory(true)}>📂 履歴</button>
-          {responses.length > 0 && (
-            <button className="btn btn-secondary btn-sm" onClick={handleDownload}>⬇ JSON</button>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16, paddingBottom:12, borderBottom:"1px solid var(--border)" }}>
+        <div>
+          <h1 style={{ fontSize:20, fontWeight:700 }}>🤖 AI Scene Router</h1>
+          <p style={{ color:"var(--text2)", fontSize:12, marginTop:2 }}>シーンに応じてAIが役割分担して協調回答</p>
+        </div>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={() => setShowHistory(true)} style={{ background:"var(--bg2)", color:"var(--text)" }}>📂 履歴</button>
+          {(stepResponses.length > 0 || scoreDetails.length > 0) && (
+            <button onClick={downloadJson} style={{ background:"var(--bg2)", color:"var(--text)" }}>💾 JSON</button>
           )}
         </div>
       </div>
 
-      {/* Config */}
-      <ConfigPanel config={config} onChange={setConfig} />
-
-      {/* Question */}
-      <div className="question-wrap">
-        <textarea className="question-input" placeholder="討論させたい質問を入力…"
-          value={question} onChange={e => setQuestion(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter" && e.ctrlKey && !running) handleStart(); }} />
-        <div className="question-actions">
-          <button className="btn btn-primary" onClick={handleStart} disabled={running}>
-            {running ? "討論中…" : "討論開始"}
-          </button>
-          {running && (
-            <button className="btn btn-danger" onClick={handleStop}>停止</button>
-          )}
+      <div style={{ display:"grid", gridTemplateColumns:"300px 1fr", gap:16 }}>
+        {/* Left: Scene selector + Config */}
+        <div>
+          <div style={{ marginBottom:12 }}>
+            <label style={{ display:"block", color:"var(--text2)", fontSize:12, marginBottom:6, fontWeight:600 }}>シーン選択</label>
+            <SceneSelector
+              scene={scene} setScene={setScene}
+              question={question} config={config}
+              onDetect={handleDetect} detectedScene={detectedScene}
+              detectLoading={detectLoading} autoMode={autoMode} setAutoMode={setAutoMode}
+              scenesMeta={scenesMeta} />
+          </div>
+          <ConfigPanel config={config} setConfig={setConfig} scene={scene} scenesMeta={scenesMeta}
+            open={showConfig} setOpen={setShowConfig} />
         </div>
-      </div>
 
-      {/* Progress */}
-      {(running || phase) && responses.length > 0 && (
-        <ProgressBar phase={phase} done={responses.length} total={totalExpected} />
-      )}
-
-      {/* Status */}
-      {!running && phase === "完了" && (
-        <div className="status-bar">✅ 討論完了 — {responses.length} 件のレスポンス</div>
-      )}
-
-      {/* Tabs */}
-      {responses.length > 0 && (
-        <>
-          <div className="tabs">
-            {TABS.map(t => (
-              <button key={t.id} className={`tab ${activeTab === t.id ? "active" : ""}`}
-                onClick={() => handleTabClick(t.id)}
-                style={activeTab === t.id && t.color ? { borderBottomColor: t.color, color: t.color } : {}}>
-                {t.label}
-                {unread[t.id] > 0 && <span className="tab-badge">{unread[t.id]}</span>}
+        {/* Right: Question input + Flow */}
+        <div>
+          {/* Question input */}
+          <div style={{ marginBottom:12 }}>
+            <textarea
+              rows={4} value={question}
+              onChange={e => setQuestion(e.target.value)}
+              placeholder="質問や依頼内容を入力してください..."
+              style={{ resize:"vertical", lineHeight:1.6 }}
+              onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !isRunning) startFlow() }}
+            />
+            <div style={{ display:"flex", gap:8, marginTop:6 }}>
+              <button onClick={startFlow} disabled={isRunning || !question.trim()}
+                style={{ flex:1, background:"var(--accent)", color:"#fff", padding:"9px 0", fontWeight:600, fontSize:14 }}>
+                {isRunning ? <><span className="spinner" style={{ marginRight:6 }} />実行中...</> : "▶ 実行 (Ctrl+Enter)"}
               </button>
-            ))}
+              {isRunning && (
+                <button onClick={stopFlow} style={{ background:"var(--error)", color:"#fff", padding:"9px 14px" }}>■ 停止</button>
+              )}
+            </div>
           </div>
-          <div className="tab-content">
-            {/* 全体タブ */}
-            {activeTab === "all" && (
-              <div>
-                {Object.entries(groupedAll).map(([label, resps]) => (
-                  <RoundSection key={label} label={label} resps={resps} newIds={newIds} />
-                ))}
-              </div>
-            )}
-            {/* AI個別タブ */}
-            {ALL_AIS.includes(activeTab) && (
-              <div>
-                {(() => {
-                  const ai = activeTab;
-                  const myResps = responses.filter(r => r.ai === ai && ["initial", "revision", "scoring"].includes(r.phase));
-                  const myEvals = responses.filter(r => r.ai === ai && r.phase === "evaluation");
-                  const recvEvals = responses.filter(r => r.target_ai === ai && r.phase === "evaluation");
-                  return (
-                    <>
-                      {myResps.length > 0 && <RoundSection label="自分の回答" resps={myResps} newIds={newIds} />}
-                      {myEvals.length > 0 && <RoundSection label="自分が行った評価" resps={myEvals} newIds={newIds} />}
-                      {recvEvals.length > 0 && <RoundSection label="自分が受けた評価" resps={recvEvals} newIds={newIds} />}
-                    </>
-                  );
-                })()}
-              </div>
-            )}
-            {/* スコアタブ */}
-            {activeTab === "score" && (
-              <div>
-                <ScoreBoard responses={responses} />
-                <div style={{ marginTop: 24 }}>
-                  <div className="score-section-title" style={{ marginBottom: 12 }}>改訂ログ</div>
-                  <RevisionLog responses={responses} />
-                </div>
-              </div>
-            )}
-          </div>
-        </>
-      )}
 
-      {/* History Modal */}
+          {/* Progress */}
+          <ProgressBar stepResponses={stepResponses} expectedSteps={expectedSteps} isRunning={isRunning} />
+
+          {/* Completion info */}
+          {!isRunning && jobId && (
+            <div style={{ color:"var(--text2)", fontSize:12, marginBottom:8 }}>
+              ✅ 完了 — {totalSteps} ステップ | Job: {jobId.slice(0,8)}...
+            </div>
+          )}
+
+          {/* Flow timeline */}
+          <FlowTimeline
+            stepResponses={stepResponses} newStepIds={newStepIds}
+            isRunning={isRunning} runningInfo={runningInfo} />
+
+          {/* Score board */}
+          {scoreDetails.length > 0 && <ScoreBoard scoreDetails={scoreDetails} />}
+        </div>
+      </div>
+
+      {/* History modal */}
       {showHistory && (
-        <HistoryModal onClose={() => setShowHistory(false)} onLoad={handleLoadHistory} />
+        <HistoryModal onClose={() => setShowHistory(false)} onLoad={loadHistoryData} />
       )}
     </div>
-  );
+  )
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+ReactDOM.createRoot(document.getElementById("root")).render(<App />)
 </script>
 </body>
 </html>

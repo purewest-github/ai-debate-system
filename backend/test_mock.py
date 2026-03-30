@@ -1,98 +1,148 @@
 """
-モックテスト: _call_ai をスタブに差し替えて全フローを検証。
-4AI・2ラウンド・改訂あり → 期待レスポンス数: 36件
-  Phase 0   : 4  (initial × 4)
-  Phase 1   : 12 (evaluation: 4AI × 3対象)
-  Phase 2   : 12 (evaluation: 4AI × 3対象)
-  Phase rev : 4  (revision × 4)
-  Phase score: 4 (scoring × 4)
+モックテスト: clients.py の call_* 関数をスタブに差し替えて全フローを検証。
+4シーン全てをテスト（APIキー・DB 不要）。
 """
 import asyncio
 import json
 import sys
-import os
+from unittest import mock
 
-sys.path.insert(0, os.path.dirname(__file__))
+from models import FlowRequest, SceneName, StepRole
+from scene_router import get_scene_config
+from flow_executor import execute_flow, execute_scorer
 
-from unittest.mock import patch
-from models import AIName, ResponseType, DebateConfig, DebateResponse
+# ─────────────────────────────────────────────
+# モックスタブ
+# ─────────────────────────────────────────────
 
-
-def _make_score_json(ai_names: list[str]) -> str:
-    """スコアJSONスタブを生成。"""
-    scores = [
-        {
-            "target_ai": name,
-            "accuracy": 8.0,
-            "evidence": 7.0,
-            "consistency": 7.5,
-            "coverage": 8.0,
-            "usefulness": 7.5,
-            "brevity": 7.0,
-            "revision_quality": 7.0,
-            "reason": f"{name}のテスト採点理由",
-        }
-        for name in ai_names
+MOCK_SCORE_JSON = json.dumps({
+    "scores": [
+        {"target_ai": "Claude",  "accuracy": 8, "evidence": 7, "consistency": 8,
+         "coverage": 7, "usefulness": 8, "brevity": 7, "revision_quality": 7, "reason": "Good Claude"},
+        {"target_ai": "ChatGPT", "accuracy": 7, "evidence": 8, "consistency": 7,
+         "coverage": 8, "usefulness": 7, "brevity": 8, "revision_quality": 7, "reason": "Good ChatGPT"},
+        {"target_ai": "Gemini",  "accuracy": 7, "evidence": 7, "consistency": 7,
+         "coverage": 7, "usefulness": 7, "brevity": 7, "revision_quality": 7, "reason": "Good Gemini"},
+        {"target_ai": "Grok",    "accuracy": 7, "evidence": 7, "consistency": 7,
+         "coverage": 7, "usefulness": 7, "brevity": 7, "revision_quality": 7, "reason": "Good Grok"},
     ]
-    return json.dumps({"scores": scores, "overall_analysis": "テスト全体分析"})
+})
+
+MOCK_IMPLEMENTATION = "## 実装手順\n- [ ] ステップ1: 環境構築\n- [ ] ステップ2: コード実装"
+MOCK_DECISION       = "## 意思決定分析\n論点: ...\nスティールマン: ...\nリスク: ..."
+MOCK_LOGIC          = "## Toulmin分析\n論理の穴: ...\nバイアス: ..."
+MOCK_RESEARCH       = "## 調査計画\nEvidence Table: ...\nタイムボックス: ..."
+MOCK_SUPPORT        = "## サポート回答\n分析: ..."
+MOCK_DEFAULT        = "デフォルトスタブ回答"
 
 
-async def _mock_call_ai(ai, prompt, config, max_tokens, semaphore, model_override=""):
-    """
-    スタブ判定:
-    - "accuracy" が含まれる → スコア JSON
-    - "改訂" または "revise" が含まれる → 改訂スタブ
-    - それ以外 → 初回/評価スタブ
-    """
-    ai_names = [a.value for a in config.enabled_ais]
+def mock_response(prompt: str) -> str:
+    """プロンプト内容でスタブを分岐する。"""
     if "accuracy" in prompt:
-        return _make_score_json(ai_names)
-    elif "改訂" in prompt or "revise" in prompt.lower():
-        return "【改訂点】\n- テスト改訂点\n\n改訂済み回答テスト"
+        return MOCK_SCORE_JSON
+    elif "実装" in prompt or "手順" in prompt or "タスク" in prompt or "Implementation" in prompt:
+        return MOCK_IMPLEMENTATION
+    elif "意思決定" in prompt or "反証" in prompt or "論点" in prompt or "Decision" in prompt:
+        return MOCK_DECISION
+    elif "論理" in prompt or "バイアス" in prompt or "Toulmin" in prompt or "logical" in prompt.lower():
+        return MOCK_LOGIC
+    elif "調査" in prompt or "Evidence" in prompt or "リサーチ" in prompt or "Research" in prompt:
+        return MOCK_RESEARCH
+    elif any(k in prompt for k in ["批評", "欠陥", "改善", "検証", "確信", "不確実", "仮説", "critic", "support"]):
+        return MOCK_SUPPORT
     else:
-        return f"{ai.value} のテスト回答"
+        return MOCK_DEFAULT
 
 
-async def run_test():
-    config = DebateConfig(
-        question="テスト質問",
-        rounds=2,
-        enabled_ais=list(AIName),
-        enable_revision=True,
+async def mock_ai_call(prompt: str, max_tokens: int, language: str, model: str = "", api_key: str = "") -> str:
+    return mock_response(prompt)
+
+
+# ─────────────────────────────────────────────
+# テスト実行
+# ─────────────────────────────────────────────
+
+async def run_scene(scene_name: str, enable_scorer: bool):
+    """1シーンのフロー全体を実行してステップ・スコアを返す。"""
+    request = FlowRequest(
+        question="テスト質問: この計画の論理的な穴を分析してください",
+        scene=SceneName(scene_name),
+        enable_scorer=enable_scorer,
+        openai_api_key="test-key",
+        gemini_api_key="test-key",
+        grok_api_key="test-key",
     )
+    scene_config = get_scene_config(SceneName(scene_name))
 
-    responses: list[DebateResponse] = []
+    step_responses = []
+    score_details = []
 
-    async def on_response(resp: DebateResponse):
-        responses.append(resp)
+    async def on_step(resp):
+        step_responses.append(resp)
 
-    # debate._call_ai をモックに差し替え
-    with patch("debate._call_ai", side_effect=_mock_call_ai):
-        from debate import run_debate
-        await run_debate(config, on_response)
+    async def on_score(score):
+        score_details.append(score)
 
-    # -------- アサート --------
-    total = len(responses)
-    errors = [r for r in responses if r.error]
-    revision_resps = [r for r in responses if r.response_type == ResponseType.REVISION]
-    scoring_resps = [r for r in responses if r.response_type == ResponseType.SCORING]
+    with mock.patch("flow_executor.call_claude",  side_effect=mock_ai_call), \
+         mock.patch("flow_executor.call_chatgpt", side_effect=mock_ai_call), \
+         mock.patch("flow_executor.call_gemini",  side_effect=mock_ai_call), \
+         mock.patch("flow_executor.call_grok",    side_effect=mock_ai_call):
 
-    print(f"\n実際レスポンス数: {total}")
-    print(f"  initial  : {sum(1 for r in responses if r.response_type == ResponseType.INITIAL)}")
-    print(f"  evaluation: {sum(1 for r in responses if r.response_type == ResponseType.EVALUATION)}")
-    print(f"  revision : {len(revision_resps)}")
-    print(f"  scoring  : {len(scoring_resps)}")
-    print(f"  errors   : {len(errors)}")
+        await execute_flow(request, scene_config, on_step, None, "")
 
-    assert total == 36, f"❌ レスポンス数: 期待 36, 実際 {total}"
-    assert len(errors) == 0, f"❌ エラーあり: {[r.error for r in errors]}"
-    assert len(revision_resps) == 4, f"❌ revision 数: 期待 4, 実際 {len(revision_resps)}"
-    assert all(r.revision_of is not None for r in revision_resps), \
-        "❌ revision_of が未設定の revision レスポンスがあります"
-    assert len(scoring_resps) == 4, f"❌ scoring 数: 期待 4, 実際 {len(scoring_resps)}"
+        if enable_scorer:
+            await execute_scorer(request, step_responses, on_score, None, "")
 
-    print("\n✅ 全テスト通過")
+    return step_responses, score_details
+
+
+async def main():
+    # シーンごとの期待値: (scene_name, enable_scorer, expected_steps)
+    test_cases = [
+        ("implementation", False, 3),
+        ("decision",       True,  3),
+        ("logic_check",    True,  3),
+        ("research",       False, 3),
+    ]
+
+    all_passed = True
+    print("=" * 60)
+
+    for scene_name, enable_scorer, expected_steps in test_cases:
+        steps, scores = await run_scene(scene_name, enable_scorer)
+
+        errors   = [s for s in steps if s.error]
+        no_content = [s for s in steps if not s.content and not s.error]
+
+        ok_steps    = len(steps) == expected_steps
+        ok_errors   = len(errors) == 0
+        ok_content  = len(no_content) == 0
+        ok_scorer   = (len(scores) > 0) == enable_scorer
+
+        passed = ok_steps and ok_errors and ok_content and ok_scorer
+        status = "✅" if passed else "❌"
+        all_passed = all_passed and passed
+
+        scorer_info = f"スコア={len(scores)}件" if enable_scorer else "Scorer=OFF"
+        print(f"{status} [{scene_name}]  ステップ={len(steps)}/{expected_steps}  {scorer_info}")
+
+        if not ok_steps:
+            print(f"   ⚠ ステップ数不一致: 期待={expected_steps}, 実際={len(steps)}")
+        if errors:
+            for e in errors:
+                print(f"   ⚠ エラー: step{e.step_index} {e.ai.value}: {e.error}")
+        if no_content:
+            print(f"   ⚠ content なし: {[f'step{s.step_index}' for s in no_content]}")
+        if not ok_scorer and enable_scorer:
+            print(f"   ⚠ スコア件数が 0 (scorer=ON なのに採点なし)")
+
+    print("=" * 60)
+    if all_passed:
+        print("✅ 全テスト通過")
+    else:
+        print("❌ テスト失敗")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    asyncio.run(run_test())
+    asyncio.run(main())

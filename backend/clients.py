@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
 from google import genai
@@ -8,14 +9,18 @@ from google.genai import types as genai_types
 logger = logging.getLogger(__name__)
 
 # デフォルトモデル
-DEFAULT_CLAUDE = "claude-haiku-4-5-20251001"
-DEFAULT_CHATGPT = "gpt-5.4"
-DEFAULT_GEMINI = "gemini-2.5-flash"
-DEFAULT_GROK = "grok-4-1-fast"
+DEFAULT_CLAUDE  = "claude-opus-4-5"
+DEFAULT_CHATGPT = "gpt-4o"
+DEFAULT_GEMINI  = "gemini-2.0-flash"
+DEFAULT_GROK    = "grok-2-1212"
 
 
-async def call_claude(prompt: str, max_tokens: int, language: str, model: str, api_key: str = "") -> str:
-    """Claude API を呼び出す。api_key が空の場合は ValueError を raise。"""
+async def call_claude(
+    prompt: str, max_tokens: int, language: str, model: str = "", api_key: str = ""
+) -> str:
+    """Claude API を呼び出す。api_key 未指定時は ANTHROPIC_API_KEY 環境変数を使用。"""
+    if not api_key:
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:
         raise ValueError("Anthropic API キーが設定されていません")
     if not model:
@@ -39,7 +44,7 @@ async def call_claude(prompt: str, max_tokens: int, language: str, model: str, a
 
 
 async def call_chatgpt(
-    prompt: str, max_tokens: int, language: str, model: str, api_key: str = ""
+    prompt: str, max_tokens: int, language: str, model: str = "", api_key: str = ""
 ) -> str:
     """OpenAI GPT API を呼び出す。api_key が空の場合は ValueError を raise。"""
     if not api_key:
@@ -74,7 +79,7 @@ async def call_chatgpt(
 
 
 async def call_gemini(
-    prompt: str, max_tokens: int, language: str, model: str, api_key: str = ""
+    prompt: str, max_tokens: int, language: str, model: str = "", api_key: str = ""
 ) -> str:
     """Google Gemini API を google-genai SDK で呼び出す。api_key が空の場合は ValueError を raise。"""
     if not api_key:
@@ -102,7 +107,7 @@ async def call_gemini(
 
 
 async def call_grok(
-    prompt: str, max_tokens: int, language: str, model: str, api_key: str = ""
+    prompt: str, max_tokens: int, language: str, model: str = "", api_key: str = ""
 ) -> str:
     """Grok API を OpenAI 互換クライアントで呼び出す。api_key が空の場合は ValueError を raise。"""
     if not api_key:

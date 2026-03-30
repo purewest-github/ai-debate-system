@@ -1,34 +1,76 @@
 from enum import Enum
-from typing import Optional, List, Literal
-from pydantic import BaseModel, Field
+from typing import Optional, List
+from pydantic import BaseModel
 import time
 
 
 class AIName(str, Enum):
-    CLAUDE = "Claude"
+    CLAUDE  = "Claude"
     CHATGPT = "ChatGPT"
-    GEMINI = "Gemini"
-    GROK = "Grok"
+    GEMINI  = "Gemini"
+    GROK    = "Grok"
 
 
-class ResponseType(str, Enum):
-    INITIAL = "initial"
-    EVALUATION = "evaluation"
-    REVISION = "revision"
-    SCORING = "scoring"
+class SceneName(str, Enum):
+    IMPLEMENTATION = "implementation"
+    DECISION       = "decision"
+    LOGIC_CHECK    = "logic_check"
+    RESEARCH       = "research"
 
 
-class DebateResponse(BaseModel):
-    id: str
+class StepRole(str, Enum):
+    LEAD                = "lead"
+    SUPPORT_CRITIC      = "support_critic"
+    SUPPORT_ORGANIZER   = "support_organizer"
+    SUPPORT_VALIDATOR   = "support_validator"
+    SUPPORT_EXECUTOR    = "support_executor"
+    SUPPORT_REWRITER    = "support_rewriter"
+    SUPPORT_CONFIDENCE  = "support_confidence"
+    SUPPORT_UNCERTAINTY = "support_uncertainty"
+    SUPPORT_HYPOTHESIS  = "support_hypothesis"
+    SCORER              = "scorer"
+
+
+class FlowType(str, Enum):
+    SEQUENTIAL = "sequential"
+    PARALLEL   = "parallel"
+
+
+class FlowStep(BaseModel):
+    step_index: int
     ai: AIName
-    round: int
-    response_type: ResponseType
-    phase: str
-    target_ai: Optional[AIName] = None
-    revision_of: Optional[str] = None
+    role: StepRole
+    flow_type: FlowType
+    prompt_key: str
+    depends_on: List[int] = []
+
+
+class SceneConfig(BaseModel):
+    scene: SceneName
+    steps: List[FlowStep]
+    scorer_available: bool
+    scorer_default: bool
+
+
+class FlowRequest(BaseModel):
+    question: str
+    scene: SceneName
+    enable_scorer: bool
+    openai_api_key: str
+    gemini_api_key: str
+    grok_api_key: str
+    language: str = "ja"
+    model_overrides: dict = {}
+
+
+class StepResponse(BaseModel):
+    id: str
+    step_index: int
+    ai: AIName
+    role: StepRole
     content: str
     error: Optional[str] = None
-    timestamp: float = Field(default_factory=time.time)
+    timestamp: float = 0.0
 
 
 class ScoreDetail(BaseModel):
@@ -46,20 +88,12 @@ class ScoreDetail(BaseModel):
     reason: str
 
 
-class DebateConfig(BaseModel):
+class DetectRequest(BaseModel):
     question: str
-    rounds: int = Field(default=2, ge=1, le=5)
-    anthropic_api_key: str = ""
-    openai_api_key: str = ""
-    gemini_api_key: str = ""
-    grok_api_key: str = ""
-    enabled_ais: List[AIName] = Field(default_factory=lambda: list(AIName))
-    language: Literal["ja", "en"] = "ja"
-    enable_revision: bool = True
-    max_tokens_initial: int = 1000
-    max_tokens_eval: int = 3000
-    max_tokens_revision: int = 1500
-    max_tokens_score: int = 3000
-    model_eval: str = ""
-    model_revision: str = ""
-    model_scoring: str = ""
+    gemini_api_key: str
+
+
+class DetectResponse(BaseModel):
+    scene: SceneName
+    confidence: float
+    reason: str
