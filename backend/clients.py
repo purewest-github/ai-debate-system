@@ -8,10 +8,10 @@ from google.genai import types as genai_types
 logger = logging.getLogger(__name__)
 
 # デフォルトモデル
-DEFAULT_CLAUDE = "claude-haiku-4-5"
-DEFAULT_CHATGPT = "gpt-4o-mini"
+DEFAULT_CLAUDE = "claude-haiku-4-5-20251001"
+DEFAULT_CHATGPT = "gpt-5.4-mini"
 DEFAULT_GEMINI = "gemini-2.5-flash"
-DEFAULT_GROK = "grok-2"
+DEFAULT_GROK = "grok-4-1-fast"
 
 
 async def call_claude(prompt: str, max_tokens: int, language: str, model: str, api_key: str = "") -> str:
