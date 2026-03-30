@@ -73,13 +73,15 @@ async def call_gemini(
     if not model:
         model = DEFAULT_GEMINI
     client = genai.Client(api_key=api_key)
+    # gemini-2.5-flash の出力上限は8192トークン
+    capped_tokens = min(max_tokens, 8192)
 
     for attempt in range(3):
         try:
             response = await client.aio.models.generate_content(
                 model=model,
                 contents=prompt,
-                config=genai_types.GenerateContentConfig(max_output_tokens=max_tokens),
+                config=genai_types.GenerateContentConfig(max_output_tokens=capped_tokens),
             )
             return response.text
         except Exception as e:

@@ -31,7 +31,19 @@ def parse_score_response(content: str) -> Optional[dict]:
             try:
                 return json.loads(match.group())
             except json.JSONDecodeError:
-                pass
+                # 末尾が切れている場合、最後の完全なオブジェクトまでを抽出して再パース
+                partial = match.group()
+                # 末尾の不完全なエントリを除去: 最後の '}' で終わる位置まで切り詰める
+                last_brace = partial.rfind("}")
+                if last_brace != -1:
+                    truncated = partial[: last_brace + 1]
+                    # 開き括弧と閉じ括弧の数を合わせて補完
+                    open_count = truncated.count("{") - truncated.count("}")
+                    truncated += "}" * open_count
+                    try:
+                        return json.loads(truncated)
+                    except json.JSONDecodeError:
+                        pass
     logger.warning("スコアJSONのパースに失敗しました")
     return None
 
