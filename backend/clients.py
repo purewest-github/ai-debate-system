@@ -1,5 +1,4 @@
 import asyncio
-import os
 import logging
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
@@ -16,11 +15,12 @@ DEFAULT_GROK = "grok-2-1212"
 
 
 async def call_claude(prompt: str, max_tokens: int, language: str, model: str, api_key: str = "") -> str:
-    """Claude API を呼び出す。api_key が空なら環境変数 ANTHROPIC_API_KEY にフォールバック。"""
+    """Claude API を呼び出す。api_key が空の場合は ValueError を raise。"""
+    if not api_key:
+        raise ValueError("Anthropic API キーが設定されていません")
     if not model:
         model = DEFAULT_CLAUDE
-    key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
-    client = AsyncAnthropic(api_key=key)
+    client = AsyncAnthropic(api_key=api_key)
 
     for attempt in range(3):
         try:
@@ -41,11 +41,12 @@ async def call_claude(prompt: str, max_tokens: int, language: str, model: str, a
 async def call_chatgpt(
     prompt: str, max_tokens: int, language: str, model: str, api_key: str = ""
 ) -> str:
-    """OpenAI GPT API を呼び出す。"""
+    """OpenAI GPT API を呼び出す。api_key が空の場合は ValueError を raise。"""
+    if not api_key:
+        raise ValueError("OpenAI API キーが設定されていません")
     if not model:
         model = DEFAULT_CHATGPT
-    key = api_key or os.environ.get("OPENAI_API_KEY", "")
-    client = AsyncOpenAI(api_key=key)
+    client = AsyncOpenAI(api_key=api_key)
 
     for attempt in range(3):
         try:
@@ -66,11 +67,12 @@ async def call_chatgpt(
 async def call_gemini(
     prompt: str, max_tokens: int, language: str, model: str, api_key: str = ""
 ) -> str:
-    """Google Gemini API を google-genai SDK で呼び出す。"""
+    """Google Gemini API を google-genai SDK で呼び出す。api_key が空の場合は ValueError を raise。"""
+    if not api_key:
+        raise ValueError("Gemini API キーが設定されていません")
     if not model:
         model = DEFAULT_GEMINI
-    key = api_key or os.environ.get("GEMINI_API_KEY", "")
-    client = genai.Client(api_key=key)
+    client = genai.Client(api_key=api_key)
 
     for attempt in range(3):
         try:
@@ -91,11 +93,12 @@ async def call_gemini(
 async def call_grok(
     prompt: str, max_tokens: int, language: str, model: str, api_key: str = ""
 ) -> str:
-    """Grok API を OpenAI 互換クライアントで呼び出す。"""
+    """Grok API を OpenAI 互換クライアントで呼び出す。api_key が空の場合は ValueError を raise。"""
+    if not api_key:
+        raise ValueError("Grok API キーが設定されていません")
     if not model:
         model = DEFAULT_GROK
-    key = api_key or os.environ.get("GROK_API_KEY", "")
-    client = AsyncOpenAI(api_key=key, base_url="https://api.x.ai/v1")
+    client = AsyncOpenAI(api_key=api_key, base_url="https://api.x.ai/v1")
 
     for attempt in range(3):
         try:

@@ -5,8 +5,6 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-import os
-
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -65,21 +63,19 @@ async def health():
 @app.post("/api/debate/stream")
 async def debate_stream(config: DebateConfig, request: Request):
     """SSE エンドポイント。討論の進行をリアルタイムにストリーミング。"""
-    # APIキーバリデーション（UI入力もenv変数も空なら400）
-    missing = []
-    if AIName.CLAUDE in config.enabled_ais and not config.anthropic_api_key and not os.environ.get("ANTHROPIC_API_KEY"):
-        missing.append("Anthropic")
-    if AIName.CHATGPT in config.enabled_ais and not config.openai_api_key and not os.environ.get("OPENAI_API_KEY"):
-        missing.append("OpenAI")
-    if AIName.GEMINI in config.enabled_ais and not config.gemini_api_key and not os.environ.get("GEMINI_API_KEY"):
-        missing.append("Gemini")
-    if AIName.GROK in config.enabled_ais and not config.grok_api_key and not os.environ.get("GROK_API_KEY"):
-        missing.append("Grok")
-    if missing:
-        return JSONResponse(
-            status_code=400,
-            content={"detail": f"APIキーを入力してください: {', '.join(missing)}"},
-        )
+    # APIキーバリデーション（config のキーが空なら400）
+    key_map = [
+        (AIName.CLAUDE,  config.anthropic_api_key, "Claude"),
+        (AIName.CHATGPT, config.openai_api_key,    "ChatGPT"),
+        (AIName.GEMINI,  config.gemini_api_key,    "Gemini"),
+        (AIName.GROK,    config.grok_api_key,      "Grok"),
+    ]
+    for ai, key, label in key_map:
+        if ai in config.enabled_ais and not key:
+            return JSONResponse(
+                status_code=400,
+                content={"detail": f"{label} のAPIキーを入力してください"},
+            )
 
     queue: asyncio.Queue = asyncio.Queue()
     job_id = str(uuid.uuid4())
