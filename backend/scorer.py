@@ -57,14 +57,41 @@ def calculate_weighted_total(raw: dict, is_self: bool) -> float:
 
 
 def aggregate_final_scores(score_details: list) -> dict:
-    """AI 別に weighted_total の平均を計算してランク付け。"""
+    """
+    採点者ごとに z-score 正規化してから AI 別平均を計算してランク付け。
+    採点基準が甘い/辛い採点者の影響を補正する。
+    """
+    import math
     from collections import defaultdict
-    totals: dict = defaultdict(list)
+
+    # 採点者ごとに weighted_total を収集
+    by_scorer: dict = defaultdict(list)
     for s in score_details:
-        totals[s.target_ai.value].append(s.weighted_total)
+        by_scorer[s.scorer_ai.value].append(s.weighted_total)
+
+    # 採点者ごとの平均・標準偏差を計算
+    scorer_stats: dict = {}
+    for scorer, scores in by_scorer.items():
+        mean = sum(scores) / len(scores)
+        variance = sum((x - mean) ** 2 for x in scores) / len(scores)
+        std = math.sqrt(variance)
+        scorer_stats[scorer] = {"mean": mean, "std": std}
+
+    # z-score 正規化した値を AI 別に収集
+    normalized: dict = defaultdict(list)
+    for s in score_details:
+        stats = scorer_stats[s.scorer_ai.value]
+        if stats["std"] > 0:
+            # z-score を 0〜100 スケールに変換（平均50、標準偏差10）
+            z = (s.weighted_total - stats["mean"]) / stats["std"]
+            norm = 50.0 + z * 10.0
+        else:
+            # 全スコアが同値の場合は元の値をそのまま使用
+            norm = s.weighted_total
+        normalized[s.target_ai.value].append(norm)
 
     aggregated = {}
-    for ai_name, scores in totals.items():
+    for ai_name, scores in normalized.items():
         avg = sum(scores) / len(scores) if scores else 0
         aggregated[ai_name] = round(avg, 2)
 
