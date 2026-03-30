@@ -24,21 +24,30 @@ async def _call_ai(
     """各 AI クライアントへのディスパッチ。semaphore で同時実行数を制限。"""
     async with semaphore:
         if ai == AIName.CLAUDE:
-            return await call_claude(prompt, max_tokens, config.language, model_override, config.anthropic_api_key)
+            result = await call_claude(prompt, max_tokens, config.language, model_override, config.anthropic_api_key)
         elif ai == AIName.CHATGPT:
-            return await call_chatgpt(
+            result = await call_chatgpt(
                 prompt, max_tokens, config.language, model_override, config.openai_api_key
             )
         elif ai == AIName.GEMINI:
-            return await call_gemini(
+            result = await call_gemini(
                 prompt, max_tokens, config.language, model_override, config.gemini_api_key
             )
         elif ai == AIName.GROK:
-            return await call_grok(
+            result = await call_grok(
                 prompt, max_tokens, config.language, model_override, config.grok_api_key
             )
         else:
             raise ValueError(f"未知の AI: {ai}")
+
+        # デバッグ: 空/None レスポンスを警告ログに出力
+        if not result:
+            logger.warning(
+                f"[DEBUG] {ai.value} が空またはNoneのレスポンスを返しました。"
+                f" model={model_override or 'default'}, max_tokens={max_tokens},"
+                f" prompt_head={prompt[:100]!r}"
+            )
+        return result
 
 
 async def run_debate(

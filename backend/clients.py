@@ -55,7 +55,15 @@ async def call_chatgpt(
                 max_completion_tokens=max_tokens,
                 messages=[{"role": "user", "content": prompt}],
             )
-            return response.choices[0].message.content
+            content = response.choices[0].message.content
+            # gpt-5系など一部モデルで content が None になる場合がある
+            if content is None:
+                logger.warning(
+                    f"ChatGPT ({model}) の content が None。"
+                    f" finish_reason={response.choices[0].finish_reason}"
+                )
+                content = ""
+            return content
         except Exception as e:
             if attempt == 2:
                 raise
