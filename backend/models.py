@@ -57,9 +57,9 @@ class DebateConfig(BaseModel):
     language: Literal["ja", "en"] = "ja"
     enable_revision: bool = True
     max_tokens_initial: int = 1000
-    max_tokens_eval: int = 1500
+    max_tokens_eval: int = 2000
     max_tokens_revision: int = 1500
-    max_tokens_score: int = 1000
+    max_tokens_score: int = 2000
     model_eval: str = ""
     model_revision: str = ""
     model_scoring: str = ""

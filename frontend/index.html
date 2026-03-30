@@ -253,7 +253,9 @@ function computeScores(responses) {
   for (const sr of scoring) {
     const parsed = parseScoreContent(sr.content);
     if (!parsed || !parsed.scores) continue;
+    const VALID_AI_NAMES = ["Claude", "ChatGPT", "Gemini", "Grok"];
     for (const s of parsed.scores) {
+      if (!VALID_AI_NAMES.includes(s.target_ai)) continue;
       const isSelf = sr.ai === s.target_ai;
       const wt = calcWeightedTotal(s, isSelf);
       if (!perAI[s.target_ai]) perAI[s.target_ai] = [];
