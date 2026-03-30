@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 # デフォルトモデル
 DEFAULT_CLAUDE = "claude-haiku-4-5-20251001"
-DEFAULT_CHATGPT = "gpt-5.4-mini"
+DEFAULT_CHATGPT = "gpt-5.4"
 DEFAULT_GEMINI = "gemini-2.5-flash"
 DEFAULT_GROK = "grok-4-1-fast"
 
@@ -56,13 +56,14 @@ async def call_chatgpt(
                 messages=[{"role": "user", "content": prompt}],
             )
             content = response.choices[0].message.content
-            # gpt-5系など一部モデルで content が None になる場合がある
-            if content is None:
-                logger.warning(
-                    f"ChatGPT ({model}) の content が None。"
-                    f" finish_reason={response.choices[0].finish_reason}"
-                )
-                content = ""
+            # reasoning モデルでは content が空になり reasoning_content に入る場合がある
+            if not content:
+                content = getattr(response.choices[0].message, "reasoning_content", "") or ""
+                if not content:
+                    logger.warning(
+                        f"ChatGPT ({model}) の content が空。"
+                        f" finish_reason={response.choices[0].finish_reason}"
+                    )
             return content
         except Exception as e:
             if attempt == 2:
@@ -81,8 +82,8 @@ async def call_gemini(
     if not model:
         model = DEFAULT_GEMINI
     client = genai.Client(api_key=api_key)
-    # gemini-2.5-flash の出力上限は8192トークン
-    capped_tokens = min(max_tokens, 8192)
+    # 安定した完全レスポンスを優先するため4096でキャップ
+    capped_tokens = min(max_tokens, 4096)
 
     for attempt in range(3):
         try:
