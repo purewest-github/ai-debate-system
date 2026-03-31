@@ -166,6 +166,44 @@ async def get_recent_jobs(pool: Optional[asyncpg.Pool], limit: int = 20) -> list
         return []
 
 
+async def get_job_context(pool: Optional[asyncpg.Pool], job_id: str) -> dict:
+    """リトライ用: job の scene/question と全 step_responses を返す。"""
+    if not pool:
+        return {}
+    try:
+        async with pool.acquire() as conn:
+            job_row = await conn.fetchrow("SELECT * FROM scene_jobs WHERE id=$1", job_id)
+            if not job_row:
+                return {}
+            steps = await conn.fetch(
+                "SELECT * FROM step_responses WHERE job_id=$1 ORDER BY step_index, created_at",
+                job_id,
+            )
+            return {
+                "job": dict(job_row),
+                "steps": [dict(r) for r in steps],
+            }
+    except Exception as e:
+        logger.warning(f"get_job_context 失敗: {e}")
+        return {}
+
+
+async def update_step_response(
+    pool: Optional[asyncpg.Pool], step_id: str, content: str, error: Optional[str]
+) -> None:
+    """リトライ後に step_responses を上書き更新する。"""
+    if not pool:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE step_responses SET content=$1, error=$2 WHERE id=$3",
+                content, error, step_id,
+            )
+    except Exception as e:
+        logger.warning(f"update_step_response 失敗: {e}")
+
+
 async def get_job_detail(pool: Optional[asyncpg.Pool], job_id: str) -> dict:
     if not pool:
         return {}

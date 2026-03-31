@@ -11,8 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from dotenv import load_dotenv
 
-from models import FlowRequest, DetectRequest, SceneName
-from flow_executor import execute_flow, execute_scorer
+from fastapi import HTTPException
+from models import FlowRequest, DetectRequest, SceneName, AIName, StepResponse
+from flow_executor import execute_flow, execute_scorer, _call_ai, _get_api_key, _build_prompt
 from scene_router import get_scene_config, SCENE_META
 from scene_detector import detect_scene
 import db
@@ -151,6 +152,126 @@ async def flow_stream(request_body: FlowRequest, request: Request):
                     logger.info("クライアント切断を検出")
                     break
                 yield ": keepalive\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.post("/api/debate/retry/{job_id}/{ai_name}/{step_id}")
+async def retry_step(job_id: str, ai_name: str, step_id: str, request: Request):
+    """
+    指定ステップを単体で再実行して SSE で結果を返す。
+    DB からジョブのコンテキスト（前ステップ結果）を復元して使用する。
+    529/500/503 は最大 4 回・指数バックオフでリトライ。タイムアウト 60 秒。
+    """
+    pool = app.state.pool
+
+    # ── コンテキスト復元 ──
+    ctx = await db.get_job_context(pool, job_id) if pool else {}
+    if not ctx:
+        raise HTTPException(status_code=404, detail=f"job {job_id} が見つかりません")
+
+    job = ctx["job"]
+    scene_name = job.get("scene", "")
+    question   = job.get("question", "")
+
+    try:
+        scene_enum = SceneName(scene_name)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"不明なシーン: {scene_name}")
+
+    scene_config = get_scene_config(scene_enum)
+
+    # 対象ステップの FlowStep を特定
+    target_flow_step = next(
+        (s for s in scene_config.steps if s.ai.value == ai_name), None
+    )
+    if target_flow_step is None:
+        raise HTTPException(status_code=404, detail=f"AI {ai_name} がシーン {scene_name} に見つかりません")
+
+    # DB の前ステップ結果を StepResponse 風の dict に変換
+    db_steps = {row["step_index"]: row for row in ctx.get("steps", [])}
+
+    # depends_on の content を復元
+    class _FakeResp:
+        def __init__(self, row):
+            self.content = row.get("content") or ""
+            self.error   = row.get("error")
+
+    completed = {idx: _FakeResp(db_steps[idx]) for idx in db_steps}
+
+    # フロントから api_key を受け取るため query param で受け取る
+    params = dict(request.query_params)
+    fake_request = type("R", (), {
+        "question":          question,
+        "anthropic_api_key": params.get("anthropic_api_key", ""),
+        "openai_api_key":    params.get("openai_api_key", ""),
+        "gemini_api_key":    params.get("gemini_api_key", ""),
+        "grok_api_key":      params.get("grok_api_key", ""),
+        "language":          params.get("language", "ja"),
+        "model_overrides":   {},
+    })()
+
+    try:
+        ai_enum = AIName(ai_name)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"不明な AI: {ai_name}")
+
+    api_key = _get_api_key(ai_enum, fake_request)
+    model   = ""
+    max_tokens = 2000 if target_flow_step.role.value == "lead" else 1500
+    prompt  = _build_prompt(target_flow_step, question, completed, fake_request.language)
+
+    async def generate() -> AsyncGenerator[str, None]:
+        # 指数バックオフリトライ（最大 4 回、対象: 529/500/503）
+        content = ""
+        error   = None
+        for attempt in range(5):  # 初回 + 4 回リトライ
+            try:
+                content = await asyncio.wait_for(
+                    _call_ai(ai_enum, prompt, max_tokens, fake_request.language, model, api_key),
+                    timeout=60.0,
+                )
+                error = None
+                break
+            except asyncio.TimeoutError:
+                error = "タイムアウト（60秒）"
+                break
+            except Exception as e:
+                msg = str(e)
+                # 529/500/503 はリトライ対象
+                retryable = any(code in msg for code in ["529", "500", "503", "overloaded", "server_error"])
+                if retryable and attempt < 4:
+                    wait = 2 ** attempt
+                    logger.warning(f"リトライ {attempt+1}/4: {msg}。{wait}秒後に再試行")
+                    await asyncio.sleep(wait)
+                    continue
+                error = msg
+                break
+
+        import time as _time
+        resp = StepResponse(
+            id=step_id,
+            step_index=target_flow_step.step_index,
+            ai=ai_enum,
+            role=target_flow_step.role,
+            content=content,
+            error=error,
+            timestamp=_time.time(),
+        )
+
+        # DB を更新
+        if pool:
+            await db.update_step_response(pool, step_id, content, error)
+
+        resp_dict = resp.model_dump()
+        resp_dict["ai"]   = resp.ai.value
+        resp_dict["role"] = resp.role.value
+        yield f"data: {json.dumps({'type': 'step_complete', 'step_index': resp.step_index, 'ai': resp.ai.value, 'role': resp.role.value, 'data': resp_dict}, ensure_ascii=False)}\n\n"
+        yield f"data: {json.dumps({'type': 'complete'}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
         generate(),

@@ -228,10 +228,56 @@ function ProgressBar({ stepResponses, expectedSteps, isRunning }) {
 
 // ─── StepCard ─────────────────────────────────────────────
 
-function StepCard({ resp, isNew }) {
+function StepCard({ resp, isNew, jobId, config, onRetrySuccess }) {
   const [expanded, setExpanded] = React.useState(true)
+  const [retrying, setRetrying] = React.useState(false)
   const borderColor = resp.role === "scorer" ? "var(--success)" : AI_COLORS[resp.ai]
   const opacity = resp.role.startsWith("support_") ? 0.85 : 1
+  const needsRetry = !!(resp.error || !resp.content)
+
+  async function handleRetry(e) {
+    e.stopPropagation()
+    if (!jobId) { alert("job_id が不明です（実行完了後にリトライしてください）"); return }
+    setRetrying(true)
+    const params = new URLSearchParams({
+      anthropic_api_key: config.anthropicKey || "",
+      openai_api_key:    config.openaiKey    || "",
+      gemini_api_key:    config.geminiKey    || "",
+      grok_api_key:      config.grokKey      || "",
+      language:          config.language     || "ja",
+    })
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/debate/retry/${jobId}/${resp.ai}/${resp.id}?${params}`,
+        { method: "POST", headers: { Accept: "text/event-stream" } }
+      )
+      if (!res.ok) { alert(`リトライ失敗: HTTP ${res.status}`); setRetrying(false); return }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ""
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        const lines = buf.split("\n")
+        buf = lines.pop()
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue
+          const raw = line.slice(6).trim()
+          try {
+            const ev = JSON.parse(raw)
+            if (ev.type === "step_complete") {
+              onRetrySuccess(ev.data)
+            }
+          } catch {}
+        }
+      }
+    } catch(err) {
+      alert(`リトライ中にエラーが発生しました: ${err.message}`)
+    }
+    setRetrying(false)
+  }
+
   return (
     <div className={isNew ? "fade-in" : ""}
       style={{ background: AI_BG[resp.ai] || "var(--bg2)", border:`1px solid ${borderColor}`, borderLeft:`3px solid ${borderColor}`,
@@ -243,14 +289,24 @@ function StepCard({ resp, isNew }) {
         </span>
         <span style={{ color:"var(--text2)", fontSize:12 }}>{ROLE_LABELS[resp.role] || resp.role}</span>
         <span style={{ color:"var(--text3)", fontSize:11 }}>Step {resp.step_index}</span>
-        <span style={{ marginLeft:"auto", color:"var(--text3)", fontSize:11 }}>{expanded ? "▲" : "▼"}</span>
+        <span style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:8 }}>
+          {needsRetry && (
+            <button onClick={handleRetry} disabled={retrying}
+              style={{ background:"var(--warning)", color:"#000", padding:"2px 10px", fontSize:12, borderRadius:4, opacity: retrying ? 0.7 : 1 }}>
+              {retrying ? <span className="spinner" style={{ width:11, height:11 }} /> : "🔄 リトライ"}
+            </button>
+          )}
+          <span style={{ color:"var(--text3)", fontSize:11 }}>{expanded ? "▲" : "▼"}</span>
+        </span>
       </div>
       {expanded && (
         <div style={{ padding:"0 14px 14px" }}>
           {resp.error
             ? <div style={{ color:"var(--error)", fontSize:13 }}>⚠ {resp.error}</div>
-            : <div className="prose" style={{ fontSize:13 }}
-                dangerouslySetInnerHTML={{ __html: marked.parse(resp.content || "") }} />
+            : resp.content
+              ? <div className="prose" style={{ fontSize:13 }}
+                  dangerouslySetInnerHTML={{ __html: marked.parse(resp.content) }} />
+              : <div style={{ color:"var(--text3)", fontSize:13 }}>（空のレスポンス）</div>
           }
         </div>
       )}
@@ -260,21 +316,14 @@ function StepCard({ resp, isNew }) {
 
 // ─── FlowTimeline ─────────────────────────────────────────
 
-function FlowTimeline({ stepResponses, newStepIds, isRunning, runningInfo }) {
+function FlowTimeline({ stepResponses, newStepIds, isRunning, runningInfo, jobId, config, onRetrySuccess }) {
   if (stepResponses.length === 0 && !isRunning) return null
-
-  // Group parallel steps (same depends_on level approximated by grouping consecutive same-timestamp arrivals)
-  // Simple grouping: steps that have the same step_index batch (parallel steps arrive close together)
-  // For display: group by "wave" — steps that can only run after same predecessor
-  // We detect parallel by: more than 1 step arriving for the same "level"
-  // Simplification: group consecutive steps with gap < 1s by index proximity
-  // Actually: use step_index parity — if multiple steps share no sequential dependency, show side by side
-  // Simplest: just show all steps in order, mark parallel with a note
 
   return (
     <div>
       {stepResponses.map(resp => (
-        <StepCard key={resp.id} resp={resp} isNew={newStepIds.has(resp.id)} />
+        <StepCard key={resp.id} resp={resp} isNew={newStepIds.has(resp.id)}
+          jobId={jobId} config={config} onRetrySuccess={onRetrySuccess} />
       ))}
       {isRunning && (
         <div style={{ display:"flex", alignItems:"center", gap:8, padding:12, color:"var(--text2)", fontSize:13 }}>
@@ -649,6 +698,10 @@ function App() {
     if (data.job) { setScene(data.job.scene || "implementation"); setJobId(data.job.id || "") }
   }
 
+  function handleRetrySuccess(newData) {
+    setStepResponses(prev => prev.map(r => r.id === newData.id ? { ...r, ...newData } : r))
+  }
+
   const sceneMeta = scenesMeta.find(s => s.id === scene)
   const expectedSteps = sceneMeta ? 1 + sceneMeta.support_ais.length : 3
 
@@ -719,7 +772,8 @@ function App() {
           {/* Flow timeline */}
           <FlowTimeline
             stepResponses={stepResponses} newStepIds={newStepIds}
-            isRunning={isRunning} runningInfo={runningInfo} />
+            isRunning={isRunning} runningInfo={runningInfo}
+            jobId={jobId} config={config} onRetrySuccess={handleRetrySuccess} />
 
           {/* Score board */}
           {scoreDetails.length > 0 && <ScoreBoard scoreDetails={scoreDetails} />}
