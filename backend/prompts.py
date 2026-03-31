@@ -619,7 +619,7 @@ Scenes:
 - "implementation": coding, step-by-step tasks, how-to, building, setup
 - "decision": choosing options, pros/cons, should-I questions, strategy
 - "logic_check": reviewing arguments/text for flaws, biases, logical errors
-- "research": information gathering, investigation design, finding sources
+- "research": information gathering, investigation design, finding sources, competitive analysis, technology trend research. IMPORTANT: even if the question uses the verb "design" or "plan", classify as "research" if the subject is information gathering or investigation. Example: "design a method to investigate competitors' technology trends" → "research"
 
 Question: {question}
 
