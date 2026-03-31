@@ -613,20 +613,15 @@ usefulness(0.12), brevity(0.05), revision_quality(0.03)"""
 
 def scene_detection_prompt(question: str) -> str:
     """Geminiによるシーン自動判定プロンプト"""
-    return f"""Classify the following into exactly ONE of these 4 scenes:
+    return f"""Classify the following question into exactly ONE of 4 scenes. Return a single-line JSON only.
 
 Scenes:
-- "implementation": Step-by-step task execution, coding, building, how-to guides, project breakdowns
-- "decision": Choosing between options, strategy evaluation, pros/cons, should-I decisions
-- "logic_check": Reviewing an argument/text/plan for logical flaws, biases, weak reasoning
-- "research": Information gathering, investigation design, evidence collection, background research
+- "implementation": coding, step-by-step tasks, how-to, building, setup
+- "decision": choosing options, pros/cons, should-I questions, strategy
+- "logic_check": reviewing arguments/text for flaws, biases, logical errors
+- "research": information gathering, investigation design, finding sources
 
-Question:
-{question}
+Question: {question}
 
-Return ONLY valid JSON (no code fences):
-{{
-  "scene": "implementation",
-  "confidence": 0.85,
-  "reason": "1-2 sentence explanation"
-}}"""
+Output EXACTLY this JSON on ONE LINE (no newlines, no code fences):
+{{"scene":"implementation","confidence":0.90,"reason":"brief reason"}}"""

@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 # デフォルトモデル
 DEFAULT_CLAUDE  = "claude-opus-4-5"
 DEFAULT_CHATGPT = "gpt-4o"
-DEFAULT_GEMINI  = "gemini-2.0-flash"
-DEFAULT_GROK    = "grok-2-1212"
+DEFAULT_GEMINI  = "gemini-2.5-flash"
+DEFAULT_GROK    = "grok-3-mini"
 
 
 async def call_claude(
