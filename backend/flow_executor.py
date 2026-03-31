@@ -31,9 +31,9 @@ MAX_TOKENS_SCORER  = 3000
 
 
 def _get_api_key(ai: AIName, request: FlowRequest) -> str:
-    """AI に対応する API キーを返す。Claude は環境変数フォールバック。"""
+    """AI に対応する API キーを返す。Claude はリクエストの anthropic_api_key を優先し、空の場合は環境変数にフォールバック。"""
     if ai == AIName.CLAUDE:
-        return os.environ.get("ANTHROPIC_API_KEY", "")
+        return request.anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY", "")
     if ai == AIName.CHATGPT:
         return request.openai_api_key
     if ai == AIName.GEMINI:

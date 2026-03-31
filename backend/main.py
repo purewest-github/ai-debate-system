@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import uuid
 import logging
 from contextlib import asynccontextmanager
@@ -69,6 +70,19 @@ async def scene_detect(body: DetectRequest):
 async def get_scenes():
     """全シーン定義の一覧を返す。"""
     return SCENE_META
+
+
+@app.get("/api/config")
+async def get_config():
+    """現在のデフォルトモデル設定を返す。"""
+    return {
+        "default_models": {
+            "Claude":  os.getenv("DEFAULT_MODEL_CLAUDE",  "claude-opus-4-5"),
+            "ChatGPT": os.getenv("DEFAULT_MODEL_CHATGPT", "gpt-4o"),
+            "Gemini":  os.getenv("DEFAULT_MODEL_GEMINI",  "gemini-2.5-flash"),
+            "Grok":    os.getenv("DEFAULT_MODEL_GROK",    "grok-3-mini"),
+        }
+    }
 
 
 @app.post("/api/flow/stream")

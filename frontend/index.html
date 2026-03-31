@@ -358,7 +358,7 @@ function SceneSelector({ scene, setScene, question, config, onDetect, detectedSc
 
 // ─── ConfigPanel ─────────────────────────────────────────
 
-function ConfigPanel({ config, setConfig, scene, scenesMeta, open, setOpen }) {
+function ConfigPanel({ config, setConfig, scene, scenesMeta, open, setOpen, defaultModels }) {
   const sceneMeta = scenesMeta.find(s => s.id === scene)
   const scorerDefault = sceneMeta?.scorer_default ?? false
 
@@ -378,6 +378,11 @@ function ConfigPanel({ config, setConfig, scene, scenesMeta, open, setOpen }) {
       {open && (
         <div style={{ padding:"0 14px 14px" }}>
           {/* API Keys */}
+          <div style={{ marginBottom:10 }}>
+            <label style={{ display:"block", color:"var(--text2)", fontSize:12, marginBottom:4 }}>Anthropic API Key</label>
+            <input type="password" value={config.anthropicKey || ""} placeholder="sk-ant-..."
+              onChange={e => setConfig(c => ({...c, anthropicKey: e.target.value}))} />
+          </div>
           <div style={{ marginBottom:10 }}>
             <label style={{ display:"block", color:"var(--text2)", fontSize:12, marginBottom:4 }}>OpenAI API Key</label>
             <input type="password" value={config.openaiKey || ""} placeholder="sk-..."
@@ -421,11 +426,18 @@ function ConfigPanel({ config, setConfig, scene, scenesMeta, open, setOpen }) {
           </div>
           {/* Model overrides */}
           <div>
-            <div style={{ color:"var(--text2)", fontSize:12, marginBottom:6 }}>モデルオーバーライド（空=デフォルト）</div>
+            <div style={{ display:"flex", alignItems:"center", gap:6, color:"var(--text2)", fontSize:12, marginBottom:6 }}>
+              <span>モデルオーバーライド</span>
+              <span title="空欄の場合はデフォルトモデルを使用します"
+                style={{ display:"inline-flex", alignItems:"center", justifyContent:"center",
+                  width:16, height:16, borderRadius:"50%", background:"var(--bg3)",
+                  color:"var(--text3)", fontSize:11, cursor:"default", flexShrink:0 }}>?</span>
+            </div>
             {["Claude","ChatGPT","Gemini","Grok"].map(ai => (
               <div key={ai} style={{ display:"flex", alignItems:"center", gap:6, marginBottom:6 }}>
                 <span style={{ color:AI_COLORS[ai], fontSize:12, width:64, flexShrink:0 }}>{ai}</span>
-                <input value={(config.modelOverrides||{})[ai] || ""} placeholder="デフォルト"
+                <input value={(config.modelOverrides||{})[ai] || ""}
+                  placeholder={defaultModels[ai] || "デフォルト"}
                   onChange={e => setConfig(c => ({...c, modelOverrides:{...(c.modelOverrides||{}), [ai]:e.target.value}}))}
                   style={{ flex:1 }} />
               </div>
@@ -513,10 +525,12 @@ function App() {
   const [showConfig, setShowConfig] = React.useState(true)
   const [newStepIds, setNewStepIds] = React.useState(new Set())
   const [runningInfo, setRunningInfo] = React.useState(null)
+  const [defaultModels, setDefaultModels] = React.useState({})
   const abortRef = React.useRef(null)
 
   React.useEffect(() => {
     fetch(`${API_BASE}/api/scenes`).then(r => r.json()).then(setScenesMeta).catch(() => {})
+    fetch(`${API_BASE}/api/config`).then(r => r.json()).then(d => setDefaultModels(d.default_models || {})).catch(() => {})
   }, [])
 
   React.useEffect(() => {
@@ -558,6 +572,7 @@ function App() {
       question,
       scene,
       enable_scorer: config.enableScorer ?? (sceneMeta?.scorer_default ?? false),
+      anthropic_api_key: config.anthropicKey || "",
       openai_api_key: config.openaiKey || "",
       gemini_api_key: config.geminiKey || "",
       grok_api_key: config.grokKey || "",
@@ -666,7 +681,7 @@ function App() {
               scenesMeta={scenesMeta} />
           </div>
           <ConfigPanel config={config} setConfig={setConfig} scene={scene} scenesMeta={scenesMeta}
-            open={showConfig} setOpen={setShowConfig} />
+            open={showConfig} setOpen={setShowConfig} defaultModels={defaultModels} />
         </div>
 
         {/* Right: Question input + Flow */}

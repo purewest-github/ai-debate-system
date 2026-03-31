@@ -8,11 +8,12 @@ from google.genai import types as genai_types
 
 logger = logging.getLogger(__name__)
 
-# デフォルトモデル
-DEFAULT_CLAUDE  = "claude-opus-4-5"
-DEFAULT_CHATGPT = "gpt-4o"
-DEFAULT_GEMINI  = "gemini-2.5-flash"
-DEFAULT_GROK    = "grok-3-mini"
+import os as _os
+
+def _default_claude()  -> str: return _os.getenv("DEFAULT_MODEL_CLAUDE",  "claude-opus-4-5")
+def _default_chatgpt() -> str: return _os.getenv("DEFAULT_MODEL_CHATGPT", "gpt-4o")
+def _default_gemini()  -> str: return _os.getenv("DEFAULT_MODEL_GEMINI",  "gemini-2.5-flash")
+def _default_grok()    -> str: return _os.getenv("DEFAULT_MODEL_GROK",    "grok-3-mini")
 
 
 async def call_claude(
@@ -24,7 +25,7 @@ async def call_claude(
     if not api_key:
         raise ValueError("Anthropic API キーが設定されていません")
     if not model:
-        model = DEFAULT_CLAUDE
+        model = _default_claude()
     client = AsyncAnthropic(api_key=api_key)
 
     for attempt in range(3):
@@ -50,7 +51,7 @@ async def call_chatgpt(
     if not api_key:
         raise ValueError("OpenAI API キーが設定されていません")
     if not model:
-        model = DEFAULT_CHATGPT
+        model = _default_chatgpt()
     client = AsyncOpenAI(api_key=api_key)
 
     for attempt in range(3):
@@ -85,7 +86,7 @@ async def call_gemini(
     if not api_key:
         raise ValueError("Gemini API キーが設定されていません")
     if not model:
-        model = DEFAULT_GEMINI
+        model = _default_gemini()
     client = genai.Client(api_key=api_key)
     # 安定した完全レスポンスを優先するため4096でキャップ
     capped_tokens = min(max_tokens, 4096)
@@ -113,7 +114,7 @@ async def call_grok(
     if not api_key:
         raise ValueError("Grok API キーが設定されていません")
     if not model:
-        model = DEFAULT_GROK
+        model = _default_grok()
     client = AsyncOpenAI(api_key=api_key, base_url="https://api.x.ai/v1")
 
     for attempt in range(3):
