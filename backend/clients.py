@@ -98,7 +98,15 @@ async def call_gemini(
                 contents=prompt,
                 config=genai_types.GenerateContentConfig(max_output_tokens=capped_tokens),
             )
-            return response.text
+            # response.text が None になるケース（安全フィルタ等）を防御
+            text = response.text
+            if text is None:
+                try:
+                    text = response.candidates[0].content.parts[0].text or ""
+                except Exception:
+                    text = ""
+                logger.warning(f"Gemini ({model}) response.text が None。candidates から取得: {repr(text[:50])}")
+            return text
         except Exception as e:
             if attempt == 2:
                 raise

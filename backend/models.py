@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 import time
 
 
@@ -72,6 +72,12 @@ class StepResponse(BaseModel):
     content: str
     error: Optional[str] = None
     timestamp: float = 0.0
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def coerce_none_to_empty(cls, v):
+        """None が渡された場合は空文字列に変換する。"""
+        return v if v is not None else ""
 
 
 class ScoreDetail(BaseModel):
