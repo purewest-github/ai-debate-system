@@ -88,8 +88,10 @@ async def call_gemini(
     if not model:
         model = _default_gemini()
     client = genai.Client(api_key=api_key)
-    # 安定した完全レスポンスを優先するため4096でキャップ
-    capped_tokens = min(max_tokens, 4096)
+    # gemini-2.5-pro 等の thinking 必須モデルは、思考トークンが出力トークン予算から消費される。
+    # max_tokens（1500〜3000 程度）では思考だけで埋まり response.text=None になるため、
+    # 最低 8192 トークンを保証しつつ 16384 を上限とする。
+    capped_tokens = min(max(max_tokens, 8192), 16384)
 
     for attempt in range(3):
         try:
